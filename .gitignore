@@ -1,3 +1,35 @@
+# =================================================
+# === Sekcja Ogólna i Specyficzna dla IDE       ===
+# =================================================
+# Pliki specyficzne dla IntelliJ IDEA
+.idea/
+*.iml
+
+# Pliki systemowe
+.DS_Store
+Thumbs.db
+
+
+# =================================================
+# === Sekcja Specyficzna dla Javy i Mavena      ===
+# =================================================
+# Folder wyjściowy budowania Mavena
+/backend/target/
+
+# Pliki tymczasowe Mavena
+/backend/pom.xml.tag
+/backend/pom.xml.releaseBackup
+/backend/pom.xml.versionsBackup
+/backend/pom.xml.next
+/backend/release.properties
+/backend/dependency-reduced-pom.xml
+/backend/buildNumber.properties
+
+
+# =================================================
+# === Sekcja dla Node.js (Twoja istniejąca)     ===
+# =================================================
+
 # Logs
 logs
 *.log
@@ -39,6 +71,7 @@ build/Release
 
 # Dependency directories
 node_modules/
+/frontend/node_modules/ # Jawne dodanie dla pewności
 jspm_packages/
 
 # Snowpack dependency directory (https://snowpack.dev/)
