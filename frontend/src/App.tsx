@@ -1,35 +1,94 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useState, useEffect, useRef } from 'react';
+import { Client } from '@stomp/stompjs';
+import './App.css';
 
-function App() {
-  const [count, setCount] = useState(0)
-
-  return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+interface Device {
+    id: string;
+    name: string;
+    type: string;
+    currentState: string;
 }
 
-export default App
+const API_URL = 'http://localhost:8081'; // Upewnij się, że port jest poprawny
+
+function App() {
+    const [devices, setDevices] = useState<Device[]>([]);
+    const clientRef = useRef<Client | null>(null);
+
+    useEffect(() => {
+        fetch(`${API_URL}/api/devices`)
+            .then(response => response.json())
+            .then(data => setDevices(data))
+            .catch(error => console.error('Error fetching initial devices:', error));
+    }, []);
+
+    useEffect(() => {
+        if (!clientRef.current) {
+            console.log("Creating new STOMP client instance.");
+            const client = new Client({
+                brokerURL: `ws://localhost:8081/ws`, // <-- DODAJ TĘ LINIĘ
+                debug: (str) => {
+                    console.log('STOMP: ' + str);
+                },
+                reconnectDelay: 5000,
+            });
+
+            client.onConnect = () => {
+                console.log('>>> SUCCESS: Connected to WebSocket!');
+                client.subscribe('/topic/devices', (message) => {
+                    const updatedDevice: Device = JSON.parse(message.body);
+
+                    setDevices(prevDevices => {
+                        const existing = prevDevices.find(d => d.id === updatedDevice.id);
+                        if (existing) {
+                            return prevDevices.map(d => d.id === updatedDevice.id ? updatedDevice : d);
+                        }
+                        return [...prevDevices, updatedDevice];
+                    });
+                });
+            };
+
+            client.onStompError = (frame) => {
+                console.error('Broker reported error:', frame.headers['message']);
+            };
+
+            clientRef.current = client;
+        }
+
+        if (clientRef.current.active) {
+            console.log("Client is already active.");
+        } else {
+            console.log("Activating STOMP client...");
+            clientRef.current.activate();
+        }
+
+        return () => {
+            console.log("Deactivating STOMP client on component unmount.");
+            if (clientRef.current?.active) {
+                clientRef.current.deactivate();
+            }
+        };
+    }, []);
+
+    return (
+        <>
+            <h1>IoT Simulation Platform</h1>
+            <div className="card">
+                <h2>Registered Devices (Live)</h2>
+                {devices.length > 0 ? (
+                    <ul>
+                        {devices.map(device => (
+                            <li key={device.id}>
+                                <strong>{device.name} ({device.id})</strong> - State: {device.currentState}
+                            </li>
+                        ))}
+                    </ul>
+                ) : (
+                    <p>No devices found. Waiting for events...</p>
+                )}
+            </div>
+        </>
+    );
+}
+
+export default App;
