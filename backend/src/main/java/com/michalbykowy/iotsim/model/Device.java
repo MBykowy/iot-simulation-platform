@@ -9,16 +9,13 @@ public class Device {
 
     @Id // Klucz główny
     private String id;
-
     private String name;
+    private String type;
+    private String ioType;
+    @Column(length = 1024)
+    private String currentState;
 
-    private String type; // np. "PHYSICAL", "VIRTUAL"
 
-    @Column(length = 1024) // Domyślna długość może być za mała dla JSON
-    private String currentState; // Będziemy tu przechowywać stan jako string JSON
-
-    // Gettery, settery i konstruktory (można wygenerować w IDE)
-    // Pusty konstruktor jest wymagany przez JPA
     public Device() {}
 
     public String getId() {
@@ -53,11 +50,29 @@ public class Device {
         this.currentState = currentState;
     }
 
-    public Device(String id, String name, String type, String currentState) {
-        this.id = id;
-        this.name = name;
-        this.type = type;
-        this.currentState = currentState;
+    public String getIoType() {
+        return ioType;
     }
+
+    public void setIoType(String ioType) {
+        this.ioType = ioType;
+    }
+
+    /**
+             * Konstruktor klasy Device.
+             *
+             * @param id            Unikalny identyfikator urządzenia.
+             * @param name          Nazwa urządzenia.
+             * @param type          Typ urządzenia.
+             * @param ioType        Typ wejścia/wyjścia urządzenia.
+             * @param currentState  Aktualny stan urządzenia.
+             */
+            public Device(String id, String name, String type, String ioType, String currentState) {
+                this.id = id;
+                this.name = name;
+                this.type = type;
+                this.currentState = currentState;
+                this.ioType = ioType;
+            }
 
 }
