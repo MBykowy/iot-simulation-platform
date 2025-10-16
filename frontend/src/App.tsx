@@ -1,22 +1,26 @@
+// frontend/src/App.tsx
 import { useState, useEffect, useRef } from 'react';
 import { Client } from '@stomp/stompjs';
-import './App.css';
-import {AddDeviceForm} from "./components/AddDeviceForm.tsx";
+import { DeviceCard } from './components/DeviceCard';
+import type {Device} from './types';
+import { ThemeProvider, createTheme, CssBaseline, Container, Typography, Box, Grid } from '@mui/material';
+import {AddDeviceForm} from "./components/AddDeviceForm";
+import {EventSimulatorForm} from "./components/EventSimulatorForm";
 
-interface Device {
-    id: string;
-    name: string;
-    type: string;
-    ioType: string;
-    currentState: string;
-}
+// Definiujemy ciemny motyw dla naszej aplikacji
+const darkTheme = createTheme({
+    palette: {
+        mode: 'dark',
+    },
+});
 
-const API_URL = 'http://localhost:8081'; // Upewnij się, że port jest poprawny
+const API_URL = 'http://localhost:8081';
 const WS_URL = API_URL.replace(/^http/, 'ws') + '/ws';
 
 function App() {
     const [devices, setDevices] = useState<Device[]>([]);
     const clientRef = useRef<Client | null>(null);
+
 
     useEffect(() => {
         fetch(`${API_URL}/api/devices`)
@@ -84,36 +88,46 @@ function App() {
     }, []);
 
 
+
     return (
-        <>
-            <h1>IoT Simulation Platform</h1>
+        <ThemeProvider theme={darkTheme}>
+            <CssBaseline />
+            <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+                <Typography variant="h4" component="h1" gutterBottom>
+                    IoT Simulation Platform
+                </Typography>
 
-            {/* DODAJEMY NOWĄ KARTĘ Z FORMULARZEM */}
-            <div className="card">
-                <AddDeviceForm />
-            </div>
+                {/* Kontener na formularze ułożone w siatce */}
+                <Grid container spacing={3} sx={{ mb: 4 }}>
+                    <Grid xs={12} md={6}>
+                        <AddDeviceForm />
+                    </Grid>
+                    <Grid xs={12} md={6}>
+                        <EventSimulatorForm devices={devices} />
+                    </Grid>
+                </Grid>
 
-            <div className="card">
-                <h2>Registered Devices (Live)</h2>
-                {devices.length > 0 ? (
-                    <ul>
-                        {devices.map(device => (
-                            <li key={device.id}>
-                                <strong>{device.name} ({device.id})</strong> - Type: {device.ioType} - State: {device.currentState}
-                            </li>
-                        ))}
-                    </ul>
-                ) : (
-                    <p>No devices found. Waiting for events...</p>
-                )}
-            </div>
-        </>
+                <Box>
+                    <Typography variant="h5" component="h2" gutterBottom>
+                        Registered Devices (Live)
+                    </Typography>
+                    {devices.length > 0 ? (
+                        <Grid container spacing={3}>
+                            {devices.map(device => (
+                                <Grid xs={12} sm={6} md={4} key={device.id}>
+                                    <DeviceCard device={device} />
+                                </Grid>
+                            ))}
+                        </Grid>
+                    ) : (
+                        <Typography color="text.secondary" sx={{ mt: 2 }}>
+                            No devices found. Use the form above to add a virtual device.
+                        </Typography>
+                    )}
+                </Box>
+            </Container>
+        </ThemeProvider>
     );
 }
 
-
 export default App;
-
-
-
-

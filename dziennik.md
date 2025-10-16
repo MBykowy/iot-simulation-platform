@@ -24,3 +24,30 @@
 *   **Stworzono pierwszą interaktywną funkcjonalność:**
     *   **Backend:** Zaimplementowano endpoint `POST /api/devices` do tworzenia nowych urządzeń wirtualnych.
     *   **Frontend:** Zbudowano komponent formularza w Reakcie, który pozwala użytkownikowi na dodawanie urządzeń z poziomu interfejsu. Nowo dodane urządzenie pojawia się na liście natychmiast dzięki komunikacji WebSocket.
+
+
+
+**2025-10-15:**
+
+*   **Zrealizowano pełną, dwukierunkową interakcję z zarządzaniem urządzeniami:** Użytkownik może teraz nie tylko pasywnie obserwować zmiany, ale również aktywnie modyfikować stan systemu z poziomu interfejsu.
+*   **Backend:**
+    *   Zaimplementowano brakujący endpoint `GET /api/devices`, co rozwiązało problem z błędem 404 podczas inicjalnego ładowania danych przez frontend.
+    *   Stworzono endpoint `POST /api/devices` wraz z DTO (`DeviceRequest`) do przyjmowania i przetwarzania żądań tworzenia nowych urządzeń wirtualnych.
+*   **Frontend:**
+    *   Zbudowano komponent `AddDeviceForm.tsx` w Reakcie, zawierający formularz do dodawania urządzeń.
+    *   Zintegrowano formularz z głównym widokiem aplikacji.
+*   **Zamknięto pętlę interakcji:** Dodanie urządzenia przez formularz (`Frontend -> Backend`) powoduje zapis w bazie i natychmiastową aktualizację listy urządzeń na wszystkich podłączonych klientach (`Backend -> Frontend` przez WebSocket).
+*   Rozwiązano błąd `prevDevices.find is not a function` w Reakcie, wprowadzając zabezpieczenia gwarantujące, że stan listy urządzeń jest zawsze tablicą.
+
+
+**2025-10-16:**
+
+*   **Zintegrowano fizyczny moduł sprzętowy (ESP8266) z platformą:** Osiągnięto pełny przepływ danych `Hardware -> MQTT -> Backend -> Frontend`, co stanowi kluczowy kamień milowy projektu i realizuje jego główne założenie.
+*   **Rozwiązano krytyczne problemy z zależnościami i konfiguracją sieci:**
+    *   **Backend:** Zastąpiono problematyczną bazę danych w pamięci **H2** na rzecz stabilnej, plikowej bazy **SQLite**. Wyeliminowano w ten sposób fundamentalny konflikt wersji bibliotek (`NoSuchMethodError`) spowodowany przez wbudowany broker MQTT. Znaleziono i zaimplementowano poprawną, kompatybilną zależność dialektu Hibernate dla SQLite.
+    *   **Backend:** Wdrożono i skonfigurowano wbudowany broker **Moquette MQTT**, który uruchamia się razem z aplikacją Spring Boot, eliminując potrzebę używania zewnętrznych narzędzi (Docker).
+    *   **Sieć:** Zdiagnozowano i rozwiązano problem z połączeniem ESP8266, przechodząc z lokalnego brokera (blokowanego przez firewall) na publiczny broker `HiveMQ` w celu zapewnienia niezawodnej komunikacji.
+*   **Implementacja Logiki Odbioru Danych:**
+    *   **Backend:** Skonfigurowano `Spring Integration MQTT` do subskrypcji odpowiedniego tematu. Stworzono serwis `MqttMessageService`, który odbiera surowe dane z MQTT, parsuje je i aktualizuje stan odpowiedniego urządzenia w bazie danych.
+    *   **Hardware:** Przygotowano i wgrano na ESP8266 firmware, który odczytuje dane z czujników (symulowane losowe i odczyt pinów), formatuje je do JSON i publikuje na brokerze MQTT.
+*   **Pełna Pętla Danych z Hardware:** Aktualizacje z fizycznego czujnika są teraz widoczne w czasie rzeczywistym w interfejsie użytkownika bez potrzeby odświeżania strony.

@@ -30,38 +30,55 @@
         </dependency>
 
         <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>2.1.1</version>
+        </dependency>
+        <!-- Wbudowany broker MQTT (Netty) -->
+        <dependency>
+            <groupId>io.moquette</groupId>
+            <artifactId>moquette-broker</artifactId>
+            <version>0.17</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
-        <!-- Zależność do obsługi WebSockets -->
+        <!-- do obsługi WebSockets -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-websocket</artifactId>
         </dependency>
 
-        <!-- Główna zależność do Spring Integration -->
+        <!-- zależność do Spring Integration -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-integration</artifactId>
         </dependency>
 
-        <!-- === DODANE: Kluczowa zależność do obsługi MQTT === -->
+        <!-- === zależność do obsługi MQTT === -->
         <dependency>
             <groupId>org.springframework.integration</groupId>
             <artifactId>spring-integration-mqtt</artifactId>
         </dependency>
         <!-- =================================================== -->
 
-        <!-- Baza danych w pamięci (dla MVP) -->
+        <!--  SQLite (plikową) -->
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
-            <scope>runtime</scope>
+            <groupId>org.xerial</groupId>
+            <artifactId>sqlite-jdbc</artifactId>
+            <version>3.46.0.0</version>
         </dependency>
 
-
-        <!-- === DODAJ TĘ ZALEŻNOŚĆ, ABY ZAPEWNIĆ WSPARCIE TOMCAT DLA WEBSOCKET === -->
+        <!-- https://mvnrepository.com/artifact/org.hibernate.orm/hibernate-community-dialects -->
+        <dependency>
+            <groupId>org.hibernate.orm</groupId>
+            <artifactId>hibernate-community-dialects</artifactId>
+            <version>6.6.33.Final</version>
+        </dependency>
+        <!-- === TOMCAT DLA WEBSOCKET === -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-tomcat</artifactId>

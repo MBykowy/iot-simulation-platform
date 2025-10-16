@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+// Importy komponentów MUI
+import { Box, Button, TextField, Select, MenuItem, FormControl, InputLabel, Typography } from '@mui/material';
 
 const API_URL = 'http://localhost:8081';
 
@@ -9,11 +11,7 @@ export function AddDeviceForm() {
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
 
-        const newDevice = {
-            name,
-            type: 'VIRTUAL', // Na razie tworzymy tylko urządzenia wirtualne
-            ioType,
-        };
+        const newDevice = { name, type: 'VIRTUAL', ioType };
 
         fetch(`${API_URL}/api/devices`, {
             method: 'POST',
@@ -22,7 +20,6 @@ export function AddDeviceForm() {
         })
             .then(response => {
                 if (!response.ok) { throw new Error('Failed to create device'); }
-                // Po sukcesie czyścimy pola formularza
                 setName('');
                 setIoType('SENSOR');
             })
@@ -30,20 +27,36 @@ export function AddDeviceForm() {
     };
 
     return (
-        <form onSubmit={handleSubmit}>
-            <h3>Add Virtual Device</h3>
-            <input
-                type="text"
+        <Box
+            component="form"
+            onSubmit={handleSubmit}
+            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }} // Używamy 'gap' do odstępów
+        >
+            <Typography variant="h6">Add Virtual Device</Typography>
+            <TextField
+                label="Device Name"
+                variant="outlined"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Device Name"
                 required
+                fullWidth // Rozciąga na całą szerokość kontenera
             />
-            <select value={ioType} onChange={(e) => setIoType(e.target.value)}>
-                <option value="SENSOR">Sensor</option>
-                <option value="ACTUATOR">Actuator</option>
-            </select>
-            <button type="submit">Add Device</button>
-        </form>
+            {/* Select w MUI wymaga opakowania w FormControl */}
+            <FormControl fullWidth>
+                <InputLabel id="io-type-select-label">I/O Type</InputLabel>
+                <Select
+                    labelId="io-type-select-label"
+                    value={ioType}
+                    label="I/O Type"
+                    onChange={(e) => setIoType(e.target.value)}
+                >
+                    <MenuItem value="SENSOR">Sensor</MenuItem>
+                    <MenuItem value="ACTUATOR">Actuator</MenuItem>
+                </Select>
+            </FormControl>
+            <Button type="submit" variant="contained" color="primary">
+                Add Device
+            </Button>
+        </Box>
     );
 }
