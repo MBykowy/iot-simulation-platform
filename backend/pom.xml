@@ -41,6 +41,15 @@
             <version>0.17</version>
         </dependency>
 
+
+        <!-- Biblioteka do przeszukiwania struktur JSON za pomocą ścieżek -->
+        <dependency>
+            <groupId>com.jayway.jsonpath</groupId>
+            <artifactId>json-path</artifactId>
+        </dependency>
+
+
+
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>

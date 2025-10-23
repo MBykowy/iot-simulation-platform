@@ -1,6 +1,6 @@
 package com.michalbykowy.iotsim.controller;
 
-import org.springframework.web.bind.annotation.CrossOrigin; // Upewnij się, że ten import jest dodany
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -12,6 +12,12 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.http.HttpStatus;
 import java.util.UUID;
+import com.michalbykowy.iotsim.service.SimulationEngine;
+
+import com.michalbykowy.iotsim.model.Rule;
+import com.michalbykowy.iotsim.repository.RuleRepository;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;
@@ -26,6 +32,14 @@ public class ApiController {
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private SimulationEngine simulationEngine;
+    @Autowired
+    private RuleRepository ruleRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @PostMapping("/devices")
     public ResponseEntity<Device> createDevice(@RequestBody DeviceRequest deviceRequest) {
@@ -67,9 +81,31 @@ public class ApiController {
 
         System.out.println(">>> Sending WebSocket message to /topic/devices: " + savedDevice.getId());
 
-        messagingTemplate.convertAndSend("/topic/devices", savedDevice);
+        //Silnik symulacji przetwarza zdarzenie (w tym wysła wiadomości WebSocket)`
+        //messagingTemplate.convertAndSend("/topic/devices", savedDevice);
+        simulationEngine.processEvent(savedDevice);
 
         return ResponseEntity.ok(savedDevice);
+    }
+
+
+    @GetMapping("/rules")
+    public List<Rule> getAllRules() {
+        return ruleRepository.findAll();
+    }
+
+    @PostMapping("/rules")
+    public ResponseEntity<Rule> createRule(@RequestBody RuleRequest ruleRequest) throws JsonProcessingException {
+        Rule newRule = new Rule(
+                UUID.randomUUID().toString(),
+                ruleRequest.name(),
+                // Konwertujemy JsonNode z powrotem na string, aby zapisać w bazie
+                objectMapper.writeValueAsString(ruleRequest.triggerConfig()),
+                objectMapper.writeValueAsString(ruleRequest.actionConfig())
+        );
+
+        Rule savedRule = ruleRepository.save(newRule);
+        return new ResponseEntity<>(savedRule, HttpStatus.CREATED);
     }
 
     @GetMapping("/health")

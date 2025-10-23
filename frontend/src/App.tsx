@@ -1,6 +1,6 @@
 // frontend/src/App.tsx
 import { useState, useEffect, useRef } from 'react';
-import { Client, IMessage } from '@stomp/stompjs';
+import { Client, type IMessage } from '@stomp/stompjs';
 import {
     ThemeProvider,
     createTheme,
@@ -21,6 +21,7 @@ import { DeviceCard } from './components/DeviceCard';
 import { AddDeviceForm } from "./components/AddDeviceForm";
 import { EventSimulatorForm } from "./components/EventSimulatorForm";
 import type { Device } from './types';
+import { RulesManager } from './views/RulesManager';
 
 // Premium dark theme with modern aesthetics
 const darkTheme = createTheme({
@@ -393,6 +394,10 @@ function App() {
                             )}
                         </Paper>
                     </Fade>
+                    {/* NOWA SEKCJA DLA REGUŁ */}
+                    <Box>
+                        <RulesManager devices={devices} />
+                    </Box>
                 </Container>
             </Box>
         </ThemeProvider>

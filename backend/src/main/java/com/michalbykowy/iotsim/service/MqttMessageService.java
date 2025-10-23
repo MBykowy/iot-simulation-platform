@@ -7,6 +7,7 @@ import com.michalbykowy.iotsim.repository.DeviceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import com.michalbykowy.iotsim.service.SimulationEngine;
 
 @Service
 public class MqttMessageService {
@@ -16,6 +17,9 @@ public class MqttMessageService {
 
     @Autowired
     private SimpMessagingTemplate messagingTemplate;
+
+    @Autowired
+    private SimulationEngine simulationEngine;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -40,11 +44,19 @@ public class MqttMessageService {
 
             Device savedDevice = deviceRepository.save(device);
 
-            // Wysyłamy aktualizację do frontendu przez WebSocket
+            // Pierwotna aktualizacja stanu urządzenia
             messagingTemplate.convertAndSend("/topic/devices", savedDevice);
+
+            simulationEngine.processEvent(savedDevice);
 
         } catch (Exception e) {
             System.err.println("Error processing MQTT message: " + e.getMessage());
         }
     }
 }
+
+//Kwantowy
+//Ultra
+//Realistyczny
+//Wielowątkowy
+//Akcelerator

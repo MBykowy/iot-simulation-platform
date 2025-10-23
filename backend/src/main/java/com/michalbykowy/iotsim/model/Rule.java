@@ -1,0 +1,65 @@
+package com.michalbykowy.iotsim.model;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+
+@Entity
+@Table(name = "rules") // Jawnie nazywamy tabelę "rules", aby uniknąć konfliktu z słowem kluczowym "rule" w SQL
+public class Rule {
+
+    @Id
+    private String id;
+
+    private String name;
+
+    @Column(length = 1024)
+    private String triggerConfig;
+
+    @Column(length = 1024)
+    private String actionConfig;
+
+    // JPA wymaga pustego konstruktora
+    public Rule() {
+    }
+
+    public Rule(String id, String name, String triggerConfig, String actionConfig) {
+        this.id = id;
+        this.name = name;
+        this.triggerConfig = triggerConfig;
+        this.actionConfig = actionConfig;
+    }
+
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
+        this.name = name;
+    }
+
+    public String getTriggerConfig() {
+        return triggerConfig;
+    }
+
+    public void setTriggerConfig(String triggerConfig) {
+        this.triggerConfig = triggerConfig;
+    }
+
+    public String getActionConfig() {
+        return actionConfig;
+    }
+
+    public void setActionConfig(String actionConfig) {
+        this.actionConfig = actionConfig;
+    }
+}
