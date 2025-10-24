@@ -5,7 +5,6 @@ import { Box, Typography, List, ListItem, ListItemText, Paper } from '@mui/mater
 
 const API_URL = 'http://localhost:8081';
 
-// Definicja typu Rule dla frontendu
 interface Rule {
     id: string;
     name: string;

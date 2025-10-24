@@ -22,8 +22,10 @@ import { AddDeviceForm } from "./components/AddDeviceForm";
 import { EventSimulatorForm } from "./components/EventSimulatorForm";
 import type { Device } from './types';
 import { RulesManager } from './views/RulesManager';
+import { DeviceHistoryModal } from './components/DeviceHistoryModal';
+import { useChartStore } from './stores/chartStore';
 
-// Premium dark theme with modern aesthetics
+
 const darkTheme = createTheme({
     palette: {
         mode: 'dark',
@@ -71,7 +73,6 @@ const darkTheme = createTheme({
     ] as any,
 });
 
-// Configuration for API and WebSocket endpoints
 const API_URL = 'http://localhost:8081';
 const WS_URL = API_URL.replace(/^http/, 'ws') + '/ws';
 
@@ -79,7 +80,20 @@ function App() {
     const [devices, setDevices] = useState<Device[]>([]);
     const clientRef = useRef<Client | null>(null);
 
-    // Fetch initial device data on mount
+    const [selectedDevice, setSelectedDevice] = useState<Device | null>(null);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const { addDataPoint } = useChartStore();
+
+    const handleCardClick = (device: Device) => {
+        setSelectedDevice(device);
+        setIsModalOpen(true);
+    };
+
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setSelectedDevice(null);
+    };
+
     useEffect(() => {
         const fetchInitialDevices = async () => {
             try {
@@ -95,7 +109,6 @@ function App() {
         fetchInitialDevices();
     }, []);
 
-    // Manage WebSocket (STOMP) client lifecycle
     useEffect(() => {
         if (!clientRef.current) {
             console.log("Initializing STOMP client...");
@@ -121,6 +134,15 @@ function App() {
                                 return [...currentDevices, updatedDevice];
                             }
                         });
+
+                        try {
+                            const stateData = JSON.parse(updatedDevice.currentState);
+                            if (updatedDevice.ioType === 'SENSOR') {
+                                addDataPoint(stateData);
+                            }
+                        } catch (e) {
+                        }
+
                     } catch (err) {
                         console.error('Failed to parse STOMP message body:', err);
                     }
@@ -152,7 +174,6 @@ function App() {
         <ThemeProvider theme={darkTheme}>
             <CssBaseline />
             <Box sx={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)' }}>
-                {/* Premium App Bar */}
                 <AppBar
                     position="fixed"
                     elevation={0}
@@ -193,9 +214,7 @@ function App() {
                     </Toolbar>
                 </AppBar>
 
-                {/* Main Content */}
                 <Container maxWidth="lg" sx={{ pt: 12, pb: 6, mx: 'auto' }}>
-                    {/* Control Panel Section */}
                     <Fade in timeout={600}>
                         <Paper
                             elevation={0}
@@ -250,7 +269,7 @@ function App() {
                         </Paper>
                     </Fade>
 
-                    {/* Elegant Divider */}
+
                     <Box sx={{ display: 'flex', alignItems: 'center', my: 5 }}>
                         <Divider
                             sx={{
@@ -277,7 +296,7 @@ function App() {
                         />
                     </Box>
 
-                    {/* Live Devices Section */}
+
                     <Fade in timeout={800}>
                         <Paper
                             elevation={0}
@@ -363,7 +382,7 @@ function App() {
                                         <Grid item xs={12} sm={6} md={4} key={device.id}>
                                             <Grow in timeout={300 + index * 100}>
                                                 <Box>
-                                                    <DeviceCard device={device} />
+                                                    <DeviceCard device={device} onClick={() => handleCardClick(device)} />
                                                 </Box>
                                             </Grow>
                                         </Grid>
@@ -388,18 +407,23 @@ function App() {
                                         No devices found
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary">
-                                        Use the control panel above to add your first virtual device
+                                        Use the control panel above to add your  virtual devices
                                     </Typography>
                                 </Box>
                             )}
                         </Paper>
                     </Fade>
-                    {/* NOWA SEKCJA DLA REGUŁ */}
                     <Box>
                         <RulesManager devices={devices} />
                     </Box>
                 </Container>
             </Box>
+            <DeviceHistoryModal
+                device={selectedDevice}
+                open={isModalOpen}
+                onClose={handleCloseModal}
+                stompClient={clientRef.current}
+            />
         </ThemeProvider>
     );
 }

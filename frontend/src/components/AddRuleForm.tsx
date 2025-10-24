@@ -1,31 +1,28 @@
 import React, { useState } from 'react';
-import { Device } from '../types';
+import type {Device} from '../types';
 import { Box, Button, TextField, Select, MenuItem, FormControl, InputLabel, Typography, Grid, Paper } from '@mui/material';
 
 const API_URL = 'http://localhost:8081';
 
 interface AddRuleFormProps {
     devices: Device[];
-    onRuleAdded: () => void; // Funkcja do odświeżenia listy reguł
+    onRuleAdded: () => void;
 }
 
 export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
     const [ruleName, setRuleName] = useState('');
 
-    // Stany dla Triggera
     const [triggerDeviceId, setTriggerDeviceId] = useState('');
     const [triggerPath, setTriggerPath] = useState('$.temperature');
     const [triggerOperator, setTriggerOperator] = useState('GREATER_THAN');
     const [triggerValue, setTriggerValue] = useState('25');
 
-    // Stany dla Akcji
     const [actionDeviceId, setActionDeviceId] = useState('');
     const [actionNewState, setActionNewState] = useState('{"status": "ON"}');
 
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
 
-        // Budujemy obiekty config
         const triggerConfig = {
             deviceId: triggerDeviceId,
             path: triggerPath,
@@ -59,8 +56,8 @@ export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
         })
             .then(response => {
                 if (!response.ok) throw new Error('Failed to create rule');
-                onRuleAdded(); // Informujemy rodzica o sukcesie
-                // Reset formularza
+                onRuleAdded();
+
                 setRuleName('');
             })
             .catch(error => console.error('Error creating rule:', error));
@@ -74,7 +71,6 @@ export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
                     <TextField fullWidth label="Rule Name" value={ruleName} onChange={e => setRuleName(e.target.value)} required />
                 </Grid>
 
-                {/* Sekcja Trigger */}
                 <Grid item xs={12} md={6}>
                     <Paper elevation={3} sx={{ p: 2 }}>
                         <Typography variant="subtitle1" gutterBottom>IF (Trigger)</Typography>
@@ -97,7 +93,6 @@ export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
                     </Paper>
                 </Grid>
 
-                {/* Sekcja Action */}
                 <Grid item xs={12} md={6}>
                     <Paper elevation={3} sx={{ p: 2 }}>
                         <Typography variant="subtitle1" gutterBottom>THEN (Action)</Typography>

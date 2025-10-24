@@ -39,9 +39,8 @@ export function AddDeviceForm() {
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 required
-                fullWidth // Rozciąga na całą szerokość kontenera
+                fullWidth
             />
-            {/* Select w MUI wymaga opakowania w FormControl */}
             <FormControl fullWidth>
                 <InputLabel id="io-type-select-label">I/O Type</InputLabel>
                 <Select

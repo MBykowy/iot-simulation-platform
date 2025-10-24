@@ -14,7 +14,6 @@ export function EventSimulatorForm({ devices }: EventSimulatorFormProps) {
     const [newStateJson, setNewStateJson] = useState('{}');
     const [error, setError] = useState('');
 
-    // Efekt do ustawienia domyślnej wartości, gdy lista urządzeń się zmieni
     useEffect(() => {
         if (devices.length > 0 && !devices.find(d => d.id === selectedDeviceId)) {
             setSelectedDeviceId(devices[0].id);
@@ -78,12 +77,12 @@ export function EventSimulatorForm({ devices }: EventSimulatorFormProps) {
                     <TextField
                         label="New State (JSON)"
                         variant="outlined"
-                        multiline // Umożliwia wpisanie wielu linii
+                        multiline
                         rows={3}
                         value={newStateJson}
                         onChange={(e) => setNewStateJson(e.target.value)}
-                        error={!!error} // Pole staje się czerwone w razie błędu
-                        helperText={error} // Wyświetla komunikat o błędzie pod polem
+                        error={!!error}
+                        helperText={error}
                         fullWidth
                     />
 

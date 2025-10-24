@@ -21,6 +21,9 @@ public class MqttMessageService {
     @Autowired
     private SimulationEngine simulationEngine;
 
+    @Autowired
+    private TimeSeriesService timeSeriesService;
+
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     public void handleMessage(String topic, String payload) {
@@ -28,18 +31,17 @@ public class MqttMessageService {
         System.out.println("Payload: " + payload);
 
         try {
-            // Wyciągamy deviceId z tematu (np. z "iot/devices/esp8266-01/data")
+            //deviceId z tematu (np. z "iot/devices/esp8266-01/data")
             String deviceId = topic.split("/")[2];
 
-            // Znajdź urządzenie lub stwórz nowe, jeśli nie istnieje
+
             Device device = deviceRepository.findById(deviceId)
                     .orElse(new Device(deviceId, "Physical Device " + deviceId, "PHYSICAL", "SENSOR", "{}"));
 
-            // Parsujemy JSON z payloadu, aby wyciągnąć tylko dane z "sensors"
+
             JsonNode rootNode = objectMapper.readTree(payload);
             JsonNode sensorsNode = rootNode.path("sensors");
 
-            // Ustawiamy nowy stan jako string JSON
             device.setCurrentState(sensorsNode.toString());
 
             Device savedDevice = deviceRepository.save(device);
@@ -48,6 +50,7 @@ public class MqttMessageService {
             messagingTemplate.convertAndSend("/topic/devices", savedDevice);
 
             simulationEngine.processEvent(savedDevice);
+            timeSeriesService.writeSensorData(deviceId, payload);
 
         } catch (Exception e) {
             System.err.println("Error processing MQTT message: " + e.getMessage());

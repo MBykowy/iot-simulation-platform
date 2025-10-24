@@ -1,9 +1,9 @@
 import type {Device} from '../types';
-// Importy komponentów MUI
 import { Card, CardContent, Typography, Box, Chip } from '@mui/material';
 
 interface DeviceCardProps {
     device: Device;
+    onClick: () => void;
 }
 
 const formatJson = (jsonString: string) => {
@@ -15,9 +15,9 @@ const formatJson = (jsonString: string) => {
     }
 };
 
-export function DeviceCard({ device }: DeviceCardProps) {
+export function DeviceCard({ device, onClick }: DeviceCardProps) {
     return (
-        <Card>
+        <Card onClick={onClick} sx={{ cursor: 'pointer' }}>
             <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6" component="div">

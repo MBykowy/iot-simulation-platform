@@ -1,0 +1,49 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2.0
+    container_name: mosquitto
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./docker/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf
+    restart: unless-stopped
+
+  influxdb:
+    image: influxdb:2.7
+    container_name: influxdb
+    ports:
+      - "8086:8086"
+    volumes:
+      - ./docker/influxdb/data:/var/lib/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=password123
+      - DOCKER_INFLUXDB_INIT_ORG=iot-project
+      - DOCKER_INFLUXDB_INIT_BUCKET=device_data
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=SuperSafeToken
+    restart: unless-stopped
+
+  iot-backend:
+    container_name: iot-backend
+    build:
+      context: ./backend
+    ports:
+      - "8081:8081"
+    depends_on:
+      - mosquitto
+      - influxdb
+    environment:
+      - SERVER_PORT=8081
+      - SPRING_DATASOURCE_URL=jdbc:sqlite:/data/iot_platform.db
+      - MQTT_BROKER_URL=tcp://mosquitto:1883
+      - INFLUXDB_URL=http://influxdb:8086
+      - INFLUXDB_TOKEN=SuperSafeToken
+      - INFLUXDB_ORG=iot-project
+      - INFLUXDB_BUCKET=device_data
+    volumes:
+      - backend_data:/data
+    restart: on-failure
+
+volumes:
+  backend_data:

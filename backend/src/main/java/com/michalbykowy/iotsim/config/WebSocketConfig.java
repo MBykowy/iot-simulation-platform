@@ -18,9 +18,9 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        // Używamy setAllowedOriginPatterns("*") dla maksymalnej kompatybilności
-        // podczas developmentu. Jest to bardziej elastyczne niż setAllowedOrigins.
+        //  setAllowedOriginPatterns("*") dla maksymalnej kompatybilności
+        // bardziej elastyczne niż setAllowedOrigins.
         registry.addEndpoint("/ws")
-                .setAllowedOriginPatterns("*"); // <-- ZMIANA: usunięto .withSockJS()
+                .setAllowedOriginPatterns("*");
     }
 }
