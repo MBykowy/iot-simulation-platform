@@ -1,5 +1,7 @@
 package com.michalbykowy.iotsim.controller;
 
+import com.michalbykowy.iotsim.service.DeviceService;
+import com.michalbykowy.iotsim.service.RuleService;
 import com.michalbykowy.iotsim.service.TimeSeriesService;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -29,83 +31,40 @@ import java.util.Map;
 public class ApiController {
 
     @Autowired
-    private DeviceRepository deviceRepository;
+    private DeviceService deviceService;
 
     @Autowired
-    private SimpMessagingTemplate messagingTemplate;
-
-    @Autowired
-    private SimulationEngine simulationEngine;
-    @Autowired
-    private RuleRepository ruleRepository;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+    private RuleService ruleService;
 
     @Autowired
     private TimeSeriesService timeSeriesService;
 
     @PostMapping("/devices")
     public ResponseEntity<Device> createDevice(@RequestBody DeviceRequest deviceRequest) {
-        Device newDevice = new Device(
-                UUID.randomUUID().toString(),
-                deviceRequest.name(),
-                deviceRequest.type(),
-                deviceRequest.ioType(),
-                "{}"
-        );
-
-        Device savedDevice = deviceRepository.save(newDevice);
-
-        messagingTemplate.convertAndSend("/topic/devices", savedDevice);
-
+        Device savedDevice = deviceService.createDevice(deviceRequest);
         return new ResponseEntity<>(savedDevice, HttpStatus.CREATED);
     }
 
     @GetMapping("/devices")
     public List<Device> getAllDevices() {
-        return deviceRepository.findAll();
+        return deviceService.getAllDevices();
     }
 
     @PostMapping("/events")
     public ResponseEntity<Device> handleDeviceEvent(@RequestBody Map<String, Object> payload) {
-        // Oczekujemy JSON w stylu: {"deviceId": "esp32-simulated", "state": "{'temp': 21}"}
-        String deviceId = (String) payload.get("deviceId");
-        String newState = (String) payload.get("state");
-
-        Device device = deviceRepository.findById(deviceId)
-                .orElse(new Device(deviceId, "Simulated Device", "PHYSICAL", "Sensor", "{}"));
-
-        device.setCurrentState(newState); // Zaktualizuj stan
-
-        Device savedDevice = deviceRepository.save(device); // Zapisz w bazie
-
-        System.out.println(">>> Sending WebSocket message to /topic/devices: " + savedDevice.getId());
-
-        //Silnik symulacji przetwarza zdarzenie (w tym wysła wiadomości WebSocket)`
-        //messagingTemplate.convertAndSend("/topic/devices", savedDevice);
-        simulationEngine.processEvent(savedDevice);
-
+        Device savedDevice = deviceService.handleDeviceEvent(payload);
         return ResponseEntity.ok(savedDevice);
     }
 
 
     @GetMapping("/rules")
     public List<Rule> getAllRules() {
-        return ruleRepository.findAll();
+        return ruleService.getAllRules();
     }
 
     @PostMapping("/rules")
     public ResponseEntity<Rule> createRule(@RequestBody RuleRequest ruleRequest) throws JsonProcessingException {
-        Rule newRule = new Rule(
-                UUID.randomUUID().toString(),
-                ruleRequest.name(),
-                //  JsonNode z powrotem na string żeby zapisać w bazie
-                objectMapper.writeValueAsString(ruleRequest.triggerConfig()),
-                objectMapper.writeValueAsString(ruleRequest.actionConfig())
-        );
-
-        Rule savedRule = ruleRepository.save(newRule);
+        Rule savedRule = ruleService.createRule(ruleRequest);
         return new ResponseEntity<>(savedRule, HttpStatus.CREATED);
     }
 
