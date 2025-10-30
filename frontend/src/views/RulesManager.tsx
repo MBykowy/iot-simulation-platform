@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import type {Device} from '../types';
 import { AddRuleForm } from '../components/AddRuleForm';
-import { Box, Typography, List, ListItem, ListItemText, Paper } from '@mui/material';
+import { Box, Typography, List, ListItem, ListItemText, Paper, IconButton } from '@mui/material';
+import DeleteIcon from "@mui/icons-material/Delete";
 
 const API_URL = 'http://localhost:8081';
 
@@ -30,6 +31,21 @@ export function RulesManager({ devices }: RulesManagerProps) {
         fetchRules();
     }, []);
 
+    const handleDeleteRule = (ruleId: string) => {
+        if (window.confirm('Are you sure you want to delete this rule?')) {
+            fetch(`${API_URL}/api/rules/${ruleId}`, { method: 'DELETE' })
+                .then(response => {
+                    if (response.ok) {
+                        setRules(prevRules => prevRules.filter(r => r.id !== ruleId));
+                    } else {
+                        throw new Error('Failed to delete rule');
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+    };
+
+
     return (
         <Box>
             <Typography variant="h5" component="h2" gutterBottom>
@@ -40,7 +56,14 @@ export function RulesManager({ devices }: RulesManagerProps) {
                 {rules.length > 0 ? (
                     <List>
                         {rules.map(rule => (
-                            <ListItem key={rule.id}>
+                            <ListItem
+                                key={rule.id}
+                                secondaryAction={ // Dodaje akcję po prawej stronie elementu listy
+                                    <IconButton edge="end" aria-label="delete" onClick={() => handleDeleteRule(rule.id)}>
+                                        <DeleteIcon />
+                                    </IconButton>
+                                }
+                            >
                                 <ListItemText primary={rule.name} secondary={`ID: ${rule.id}`} />
                             </ListItem>
                         ))}

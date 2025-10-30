@@ -45,6 +45,12 @@ public class ApiController {
         return new ResponseEntity<>(savedDevice, HttpStatus.CREATED);
     }
 
+    @DeleteMapping("/devices/{deviceId}")
+    public ResponseEntity<Void> deleteDevice(@PathVariable String deviceId) {
+        deviceService.deleteDevice(deviceId);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/devices")
     public List<Device> getAllDevices() {
         return deviceService.getAllDevices();
@@ -66,6 +72,12 @@ public class ApiController {
     public ResponseEntity<Rule> createRule(@RequestBody RuleRequest ruleRequest) throws JsonProcessingException {
         Rule savedRule = ruleService.createRule(ruleRequest);
         return new ResponseEntity<>(savedRule, HttpStatus.CREATED);
+    }
+
+    @DeleteMapping("/rules/{ruleId}")
+    public ResponseEntity<Void> deleteRule(@PathVariable String ruleId) {
+        ruleService.deleteRule(ruleId);
+        return ResponseEntity.noContent().build();
     }
 
 

@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
-import { Modal, Box, Typography, CircularProgress, ToggleButtonGroup, ToggleButton } from '@mui/material';
+// src/components/DeviceHistoryModal.tsx
+import { useEffect } from 'react';
+import { Modal, Box, Typography, CircularProgress } from '@mui/material';
 import type {Device} from '../types';
-import { useChartStore } from '../stores/chartStore';
+import { useAppStore } from '../stores/appStore';
 import { RealTimeChart } from './RealTimeChart';
-import { Client } from '@stomp/stompjs';
-
 
 const style = {
     position: 'absolute' as 'absolute',
@@ -24,64 +23,35 @@ interface DeviceHistoryModalProps {
     device: Device | null;
     open: boolean;
     onClose: () => void;
-    stompClient: Client | null;
 }
 
-
-
-export function DeviceHistoryModal({ device, open, onClose, stompClient }: DeviceHistoryModalProps) {
-    const { data, isLoading, loadInitialData, addDataPoint, clearData } = useChartStore();
-    const [chartType, setChartType] = useState<'smooth' | 'points'>('smooth');
+export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModalProps) {
+    const { isChartLoading, loadChartData, clearChartData, setActiveChartDevice } = useAppStore();
 
     useEffect(() => {
-        let subscription: any = null;
-
-        if (open && device && stompClient?.active) {
-
-            loadInitialData(device.id, '1h');
-
-
-            subscription = stompClient.subscribe('/topic/devices', (message) => {
-                const updatedDevice: Device = JSON.parse(message.body);
-                if (updatedDevice.id === device.id) {
-                    addDataPoint(device.id, updatedDevice);
-                }
-            });
+        if (open && device) {
+            setActiveChartDevice(device.id);
+            loadChartData(device.id, '1h');
         }
 
-
         return () => {
-            if (subscription) {
-                subscription.unsubscribe();
-            }
             if (!open) {
-                clearData();
+                clearChartData();
             }
         };
-    }, [open, device, stompClient, loadInitialData, addDataPoint, clearData]);
+    }, [open, device, loadChartData, clearChartData, setActiveChartDevice]);
 
     return (
         <Modal open={open} onClose={onClose}>
             <Box sx={style}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" component="h2">
-                        History for {device?.name}
-                    </Typography>
-                    <ToggleButtonGroup
-                        value={chartType}
-                        exclusive
-                        onChange={(_, newType) => newType && setChartType(newType)}
-                        size="small"
-                    >
-                        <ToggleButton value="smooth">Smooth Line</ToggleButton>
-                        <ToggleButton value="points">Points</ToggleButton>
-                    </ToggleButtonGroup>
-                </Box>
+                <Typography variant="h6" component="h2">
+                    History for {device?.name}
+                </Typography>
 
-                {isLoading ? (
+                {isChartLoading ? (
                     <CircularProgress sx={{ mt: 4, display: 'block', mx: 'auto' }} />
                 ) : (
-                    <RealTimeChart data={data} type={chartType} />
+                    <RealTimeChart />
                 )}
             </Box>
         </Modal>

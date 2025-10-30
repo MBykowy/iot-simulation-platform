@@ -1,9 +1,13 @@
 import type {Device} from '../types';
-import { Card, CardContent, Typography, Box, Chip } from '@mui/material';
+import { Card, CardContent, Typography, Box, Chip, IconButton } from '@mui/material';
+import DeleteIcon from '@mui/icons-material/Delete';
+
+const API_URL = 'http://localhost:8081';
 
 interface DeviceCardProps {
     device: Device;
     onClick: () => void;
+    onDelete: (deviceId: string) => void;
 }
 
 const formatJson = (jsonString: string) => {
@@ -15,9 +19,33 @@ const formatJson = (jsonString: string) => {
     }
 };
 
-export function DeviceCard({ device, onClick }: DeviceCardProps) {
+export function DeviceCard({ device, onClick, onDelete }: DeviceCardProps) {
+
+    const handleDelete = (event: React.MouseEvent) => {
+        event.stopPropagation();
+
+        if (window.confirm(`Are you sure you want to delete ${device.name}?`)) {
+            fetch(`${API_URL}/api/devices/${device.id}`, { method: 'DELETE' })
+                .then(response => {
+                    if (response.ok) {
+                        onDelete(device.id);
+                    } else {
+                        throw new Error('Failed to delete device');
+                    }
+                })
+                .catch(err => console.error(err));
+        }
+    };
+
     return (
-        <Card onClick={onClick} sx={{ cursor: 'pointer' }}>
+        <Card onClick={onClick} sx={{ cursor: 'pointer', position: 'relative' }}>
+            <IconButton
+                aria-label="delete"
+                onClick={handleDelete}
+                sx={{ position: 'absolute', top: 8, right: 8, color: 'text.secondary' }}
+            >
+                <DeleteIcon />
+            </IconButton>
             <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6" component="div">

@@ -31,4 +31,14 @@ public class RuleService {
         );
         return ruleRepository.save(newRule);
     }
+
+    // w RuleService.java
+    public void deleteRule(String ruleId) {
+        if (ruleRepository.existsById(ruleId)) {
+            ruleRepository.deleteById(ruleId);
+            System.out.println("RULE SERVICE: Deleted rule with id: " + ruleId);
+        } else {
+            System.err.println("RULE SERVICE: Rule with id " + ruleId + " not found. Nothing to delete.");
+        }
+    }
 }
