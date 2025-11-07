@@ -80,6 +80,25 @@ public class ApiController {
         return ResponseEntity.noContent().build();
     }
 
+    @PostMapping("/devices/{deviceId}/simulation")
+    public ResponseEntity<Device> startOrUpdateSimulation(@PathVariable String deviceId, @RequestBody SimulationRequest request) {
+        try {
+            Device device = deviceService.configureSimulation(deviceId, request);
+            return ResponseEntity.ok(device);
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().build();
+        }
+    }
+
+    @DeleteMapping("/devices/{deviceId}/simulation")
+    public ResponseEntity<Device> stopSimulation(@PathVariable String deviceId) {
+        try {
+            Device device = deviceService.stopSimulation(deviceId);
+            return ResponseEntity.ok(device);
+        } catch (Exception e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 
     @GetMapping("/devices/{deviceId}/history")
     public ResponseEntity<List<Map<String, Object>>> getDeviceHistory(
@@ -88,6 +107,19 @@ public class ApiController {
 
         List<Map<String, Object>> history = timeSeriesService.readSensorData(deviceId, range);
         return ResponseEntity.ok(history);
+    }
+
+    @PutMapping("/devices/{deviceId}")
+    public ResponseEntity<Device> updateDevice(@PathVariable String deviceId, @RequestBody UpdateDeviceRequest request) {
+        if (request.name() == null || request.name().trim().isEmpty()) {
+            return ResponseEntity.badRequest().build();
+        }
+        try {
+            Device updatedDevice = deviceService.updateDeviceName(deviceId, request.name());
+            return ResponseEntity.ok(updatedDevice);
+        } catch (RuntimeException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 
 

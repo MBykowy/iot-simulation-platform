@@ -5,4 +5,6 @@ export interface Device {
     type: string;
     ioType: string;
     currentState: string;
+    simulationActive: boolean;
+    simulationConfig: string | null;
 }

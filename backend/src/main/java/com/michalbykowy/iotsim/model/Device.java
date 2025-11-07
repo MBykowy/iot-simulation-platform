@@ -15,6 +15,11 @@ public class Device {
     @Column(length = 1024)
     private String currentState;
 
+    @Column(columnDefinition = "TEXT")
+    private String simulationConfig;
+    private boolean simulationActive;
+
+
 
     public Device() {}
 
@@ -56,6 +61,22 @@ public class Device {
 
     public void setIoType(String ioType) {
         this.ioType = ioType;
+    }
+
+    public String getSimulationConfig() {
+        return simulationConfig;
+    }
+
+    public void setSimulationConfig(String simulationConfig) {
+        this.simulationConfig = simulationConfig;
+    }
+
+    public boolean isSimulationActive() {
+        return simulationActive;
+    }
+
+    public void setSimulationActive(boolean simulationActive) {
+        this.simulationActive = simulationActive;
     }
 
     /**

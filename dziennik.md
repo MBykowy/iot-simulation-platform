@@ -85,3 +85,58 @@
     *   **Frontend:** Zbudowano kompleksowy widok `RulesManager`, który wyświetla listę istniejących reguł oraz zawiera formularz `AddRuleForm` do tworzenia nowych.
     *   **Frontend:** Formularz umożliwia zdefiniowanie prostej reguły "IF-THEN" poprzez wybór urządzeń i warunków z list rozwijanych.
 *   **Osiągnięto pełną pętlę automatyzacji:** Użytkownik może teraz z poziomu UI stworzyć regułę, a następnie za pomocą symulatora zdarzeń wywołać warunek i zaobserwować natychmiastową, automatyczną reakcję systemu w postaci zmiany stanu innego urządzenia.
+
+---
+**2025-10-24:**
+
+*   **Zrealizowano konteneryzację środowiska backendowego:**
+    *   Stworzono plik `docker-compose.yml`, który definiuje i zarządza usługami: **Mosquitto** (broker MQTT), **InfluxDB** (baza danych szeregów czasowych) oraz **aplikacją backendową**.
+    *   Napisano `Dockerfile` dla aplikacji Spring Boot, wykorzystując wieloetapowe budowanie w celu optymalizacji finalnego obrazu.
+    *   Całe środowisko serwerowe jest teraz przenośne, powtarzalne i uruchamiane jedną komendą, co znacząco usprawnia proces deweloperski.
+    *   Usunięto wbudowany w aplikację broker Moquette, rozwiązując konflikt i zapewniając architektoniczną spójność.
+*   **Zaimplementowano zapis i wizualizację danych historycznych:**
+    *   **Backend:** Zintegrowano klienta InfluxDB z aplikacją. Stworzono `TimeSeriesService` odpowiedzialny za zapisywanie odczytów z czujników w bazie InfluxDB.
+    *   **Backend:** Dodano nowy endpoint API, `GET /api/devices/{id}/history`, który odpytuje InfluxDB o dane z zadanego okresu przy użyciu języka Flux.
+    *   **Frontend:** Zintegrowano bibliotekę **Recharts** do wizualizacji danych.
+    *   **Frontend:** Stworzono komponent `DeviceHistoryModal`, który po kliknięciu na kartę urządzenia wyświetla okno z wykresem.
+    *   **Frontend:** Zaimplementowano zaawansowany, dynamiczny wykres, który:
+        *   Na starcie pobiera dane historyczne z bazy InfluxDB.
+        *   W czasie rzeczywistym "dorysowuje" nowe punkty danych przychodzące przez WebSocket.
+        *   Utrzymuje stałą liczbę punktów na ekranie, aby zapobiec problemom z wydajnością.
+        *   Umożliwia użytkownikowi przełączanie stylu wizualizacji (linia wygładzona / punkty).
+*   **Udoskonalono symulator urządzeń (Python):** Dodano nowe wzorce generowania danych (piłokształtny, prostokątny), możliwość usuwania urządzeń oraz kontrolę nad szybkością zmian sygnału.
+
+---
+**2025-10-30:**
+
+*   **Przeprowadzono kluczową refaktoryzację architektury backendu w celu poprawy spójności i redukcji długu technicznego:**
+    *   Wprowadzono **warstwę serwisową** (`DeviceService`, `RuleService`), przenosząc do niej całą logikę biznesową z kontrolerów API (`ApiController`) oraz odbiornika MQTT (`MqttMessageService`).
+    *   "Odchudzono" `ApiController`, który teraz pełni wyłącznie rolę warstwy wejściowej, delegując wszystkie operacje do odpowiednich serwisów.
+    *   Ujednolicono logikę przetwarzania zdarzeń. Niezależnie od źródła (HTTP REST, MQTT), każde zdarzenie jest teraz obsługiwane przez tę samą metodę `DeviceService.handleDeviceEvent`, co zapewnia spójność działania i eliminuje duplikację kodu.
+*   **Uzupełniono podstawową funkcjonalność CRUD (Create, Read, Update, Delete):**
+    *   **Backend:** Zaimplementowano w warstwie serwisowej i kontrolerze endpointy `DELETE` (`/api/devices/{id}` oraz `/api/rules/{id}`).
+    *   **Frontend:** Dodano do interfejsu użytkownika przyciski umożliwiające usuwanie urządzeń (na `DeviceCard`) oraz reguł (na liście w `RulesManager`), zamykając podstawowy cykl zarządzania obiektami w systemie.
+*   **Zrealizowano refaktoryzację architektury frontendu w celu przygotowania aplikacji do dalszej rozbudowy:**
+    *   Wprowadzono bibliotekę do zarządzania stanem globalnym **Zustand**, tworząc centralny magazyn (`appStore`) dla całej aplikacji.
+    *   Przeniesiono logikę zarządzania listą urządzeń (`devices`) oraz danymi do wykresów (`chartData`) z komponentów do globalnego `store`.
+    *   Wyizolowano całą logikę połączenia WebSocket do dedykowanego, niestandardowego hooka (`useWebSocket`), który komunikuje się bezpośrednio z `appStore`.
+    *   Podzielono główny komponent `App.tsx` na mniejsze, bardziej wyspecjalizowane części: `App.tsx` (zarządzanie motywem i globalnymi hookami) oraz `Dashboard.tsx` (odpowiedzialny za layout i renderowanie widoków).
+*   **Naprawiono i usprawniono wizualizację danych historycznych:**
+    *   Zdiagnozowano i naprawiono błąd, w wyniku którego wykresy dla różnych urządzeń pokazywały te same dane. Logika została przeniesiona do `appStore` i jest teraz poprawnie powiązana z aktywnie wybranym urządzeniem.
+    *   Dodano do wykresu funkcjonalność "inteligentnego" wykrywania i wyboru wyświetlanych zmiennych, co pozwala na analizę danych z czujników o wielu polach.
+
+---
+**2025-11-07:**
+
+*   **Uruchomiono zaawansowany generator danych dla urządzeń wirtualnych:**
+    *   **Backend:** Powstał nowy, działający w tle serwis (`DataGeneratorService`), który cyklicznie tworzy dane dla aktywnych symulacji.
+    *   **Backend:** Rozszerzono model `Device` w bazie danych o konfigurację symulacji i dodano odpowiednie endpointy API do jej kontroli.
+    *   **Backend:** System pozwala teraz na symulowanie wielu parametrów (np. `temperatury` i `wilgotności`) jednocześnie dla jednego urządzenia, każdy z własnym wzorcem (sinusoida, losowy).
+    *   **Frontend:** Stworzono nowy interfejs w oknie modalnym do zarządzania symulacją, w tym do dynamicznego dodawania i konfigurowania symulowanych pól.
+*   **Wprowadzono kluczowe usprawnienia w silniku reguł i obsłudze urządzeń:**
+    *   **Backend:** Silnik reguł obsługuje teraz **reakcje łańcuchowe**, gdzie akcja jednej reguły może wyzwolić kolejną. Zaimplementowano zabezpieczenie przed nieskończonymi pętlami.
+    *   **Backend:** Urządzenia dodawane przez MQTT otrzymują teraz nazwę z payloadu wiadomości lub, w razie jej braku, nazwę domyślną. To rozwiązuje problem anonimowych urządzeń.
+    *   **Frontend & Backend:** Dodano funkcjonalność zmiany nazwy istniejących urządzeń.
+*   **Naprawiono krytyczne błędy:**
+    *   Rozwiązano problem z awarią aplikacji spowodowaną niezgodnością schematu bazy danych po modyfikacji modelu `Device`.
+    *   Naprawiono błąd logiczny, który blokował zapis danych symulacyjnych do InfluxDB. Ujednolicono format generowanych danych JSON, co przywróciło ich widoczność na wykresach.

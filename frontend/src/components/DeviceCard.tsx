@@ -1,12 +1,15 @@
-import type {Device} from '../types';
+import type { Device } from '../types';
 import { Card, CardContent, Typography, Box, Chip, IconButton } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
+import EditIcon from '@mui/icons-material/Edit';
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 
 const API_URL = 'http://localhost:8081';
 
 interface DeviceCardProps {
     device: Device;
-    onClick: () => void;
+    onHistoryClick: () => void;
+    onSimulateClick: () => void;
     onDelete: (deviceId: string) => void;
 }
 
@@ -19,11 +22,27 @@ const formatJson = (jsonString: string) => {
     }
 };
 
-export function DeviceCard({ device, onClick, onDelete }: DeviceCardProps) {
+export function DeviceCard({ device, onHistoryClick, onSimulateClick, onDelete }: DeviceCardProps) {
+
+    const handleRename = (event: React.MouseEvent) => {
+        event.stopPropagation();
+        const newName = window.prompt("Enter new name for the device:", device.name);
+
+        if (newName && newName.trim() !== "" && newName !== device.name) {
+            fetch(`${API_URL}/api/devices/${device.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName }),
+            })
+                .then(response => {
+                    if (!response.ok) throw new Error('Failed to rename device');
+                })
+                .catch(err => console.error(err));
+        }
+    };
 
     const handleDelete = (event: React.MouseEvent) => {
         event.stopPropagation();
-
         if (window.confirm(`Are you sure you want to delete ${device.name}?`)) {
             fetch(`${API_URL}/api/devices/${device.id}`, { method: 'DELETE' })
                 .then(response => {
@@ -38,14 +57,25 @@ export function DeviceCard({ device, onClick, onDelete }: DeviceCardProps) {
     };
 
     return (
-        <Card onClick={onClick} sx={{ cursor: 'pointer', position: 'relative' }}>
-            <IconButton
-                aria-label="delete"
-                onClick={handleDelete}
-                sx={{ position: 'absolute', top: 8, right: 8, color: 'text.secondary' }}
-            >
-                <DeleteIcon />
-            </IconButton>
+        <Card onClick={onHistoryClick} sx={{ cursor: 'pointer', position: 'relative' }}>
+            <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5 }}>
+                <IconButton
+                    aria-label="rename"
+                    onClick={handleRename}
+                    size="small"
+                    sx={{ color: 'text.secondary', '&:hover': { color: 'primary.light' } }}
+                >
+                    <EditIcon fontSize="small" />
+                </IconButton>
+                <IconButton
+                    aria-label="delete"
+                    onClick={handleDelete}
+                    size="small"
+                    sx={{ color: 'text.secondary', '&:hover': { color: 'error.light' } }}
+                >
+                    <DeleteIcon fontSize="small" />
+                </IconButton>
+            </Box>
             <CardContent>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <Typography variant="h6" component="div">
@@ -57,6 +87,23 @@ export function DeviceCard({ device, onClick, onDelete }: DeviceCardProps) {
                         size="small"
                     />
                 </Box>
+                {device.type === 'VIRTUAL' && (
+                    <IconButton
+                        aria-label="simulate"
+                        onClick={(e) => { e.stopPropagation(); onSimulateClick(); }}
+                        size="small"
+                        sx={{
+                            position: 'absolute', top: 8, left: 8,
+                            color: device.simulationActive ? 'secondary.main' : 'text.secondary',
+                            '&:hover': { color: 'secondary.light' }
+                        }}
+                    >
+                        <AutoAwesomeIcon fontSize="small"
+                                         sx={device.simulationActive ? { animation: 'spin 2s linear infinite', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } } } : {}}
+                        />
+                    </IconButton>
+                )}
+
                 <Typography sx={{ mb: 1.5 }} color="text.secondary">
                     ID: {device.id}
                 </Typography>
