@@ -6,6 +6,8 @@ import com.michalbykowy.iotsim.controller.SimulationRequest;
 import com.michalbykowy.iotsim.model.Device;
 import com.michalbykowy.iotsim.repository.DeviceRepository;
 import jakarta.annotation.PostConstruct;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
@@ -21,6 +23,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @EnableScheduling
 public class DataGeneratorService {
 
+    private static final Logger logger = LoggerFactory.getLogger(DataGeneratorService.class);
+
     @Autowired
     private DeviceRepository deviceRepository;
     @Autowired
@@ -33,7 +37,7 @@ public class DataGeneratorService {
 
     @PostConstruct
     public void init() {
-        System.out.println("DataGeneratorService initialized and scheduling is enabled.");
+        logger.info("DataGeneratorService initialized and scheduling is enabled.");
     }
 
     @Scheduled(fixedRate = 1000)
@@ -56,7 +60,7 @@ public class DataGeneratorService {
                     lastUpdateTimestamps.put(device.getId(), currentTime);
                 }
             } catch (Exception e) {
-                System.err.println("Error processing simulation for device " + device.getId() + ": " + e.getMessage());
+                logger.error("Error processing simulation for device {}: {}", device.getId(), e.getMessage());
             }
         }
     }

@@ -5,6 +5,8 @@ import com.michalbykowy.iotsim.model.Device;
 import com.michalbykowy.iotsim.model.Rule;
 import com.michalbykowy.iotsim.repository.DeviceRepository;
 import com.michalbykowy.iotsim.repository.RuleRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
@@ -15,6 +17,8 @@ import java.util.Map;
 
 @Service
 public class SimulationEngine {
+
+    private static final Logger logger = LoggerFactory.getLogger(SimulationEngine.class);
 
     @Autowired
     private RuleRepository ruleRepository;
@@ -35,7 +39,7 @@ public class SimulationEngine {
      * @param changedDevice Urządzenie którego stan uległ zmianie
      */
     public void processEvent(Device changedDevice) {
-        System.out.println("SIM ENGINE: Starting event chain for device: " + changedDevice.getId());
+        logger.info("SIM ENGINE: Starting event chain for device: {}", changedDevice.getId());
         processEvent(changedDevice, 0);
     }
 
@@ -46,18 +50,18 @@ public class SimulationEngine {
      */
     private void processEvent(Device changedDevice, int depth) {
         if (depth >= MAX_RECURSION_DEPTH) {
-            System.err.println("SIM ENGINE: Max recursion depth (" + MAX_RECURSION_DEPTH + ") reached for device " + changedDevice.getId() + ". Halting chain to prevent infinite loop.");
+            logger.error("SIM ENGINE: Max recursion depth (" + MAX_RECURSION_DEPTH + ") reached for device {}. Halting chain to prevent infinite loop.", changedDevice.getId());
             return;
         }
 
-        System.out.println("SIM ENGINE (Depth " + depth + "): Processing event for device: " + changedDevice.getId());
+        logger.info("SIM ENGINE (Depth {}): Processing event for device: {}", depth, changedDevice.getId());
 
         List<Rule> relevantRules = ruleRepository.findByTriggerDeviceId(changedDevice.getId());
-        System.out.println("SIM ENGINE (Depth " + depth + "): Found " + relevantRules.size() + " relevant rules.");
+        logger.info("SIM ENGINE (Depth {}): Found {} relevant rules.", depth, relevantRules.size());
 
         for (Rule rule : relevantRules) {
             if (checkCondition(rule, changedDevice)) {
-                System.out.println("SIM ENGINE (Depth " + depth + "): Condition met for rule '" + rule.getName() + "'. Executing action.");
+                logger.info("SIM ENGINE (Depth " + depth + "): Condition met for rule '" + rule.getName() + "'. Executing action.");
                 executeAction(rule, depth);
             }
         }
@@ -73,22 +77,21 @@ public class SimulationEngine {
             String deviceStateJson = device.getCurrentState();
             Object actualValue = JsonPath.read(deviceStateJson, path);
 
-            System.out.println("SIM ENGINE: Checking condition - Path: " + path + ", Operator: " + operator +
-                    ", Expected: " + expectedValue + ", Actual: " + actualValue);
+            logger.info("SIM ENGINE: Checking condition - Path: {}, Operator: {}, Expected: {}, Actual: {}", path, operator, expectedValue, actualValue);
 
-            switch (operator.toUpperCase()) {
-                case "EQUALS":
-                    return String.valueOf(actualValue).equals(String.valueOf(expectedValue));
-                case "GREATER_THAN":
-                    return Double.parseDouble(String.valueOf(actualValue)) > Double.parseDouble(String.valueOf(expectedValue));
-                case "LESS_THAN":
-                    return Double.parseDouble(String.valueOf(actualValue)) < Double.parseDouble(String.valueOf(expectedValue));
-                default:
-                    System.err.println("SIM ENGINE: Unknown operator: " + operator);
-                    return false;
-            }
+            return switch (operator.toUpperCase()) {
+                case "EQUALS" -> String.valueOf(actualValue).equals(String.valueOf(expectedValue));
+                case "GREATER_THAN" ->
+                        Double.parseDouble(String.valueOf(actualValue)) > Double.parseDouble(String.valueOf(expectedValue));
+                case "LESS_THAN" ->
+                        Double.parseDouble(String.valueOf(actualValue)) < Double.parseDouble(String.valueOf(expectedValue));
+                default -> {
+                    logger.error("SIM ENGINE: Unknown operator: {}", operator);
+                    yield false;
+                }
+            };
         } catch (Exception e) {
-            System.err.println("SIM ENGINE: Error checking condition for rule " + rule.getId() + ": " + e.getMessage());
+            logger.error("SIM ENGINE: Error checking condition for rule {}: {}", rule.getId(), e.getMessage());
             return false;
         }
     }
@@ -106,17 +109,17 @@ public class SimulationEngine {
             String newStateJson = objectMapper.writeValueAsString(newStateObj);
 
             deviceRepository.findById(targetDeviceId).ifPresent(targetDevice -> {
-                System.out.println("SIM ENGINE: Updating device " + targetDeviceId + " with new state: " + newStateJson);
+                logger.info("SIM ENGINE: Updating device {} with new state: {}", targetDeviceId, newStateJson);
                 targetDevice.setCurrentState(newStateJson);
                 Device updatedDevice = deviceRepository.save(targetDevice);
                 messagingTemplate.convertAndSend("/topic/devices", updatedDevice);
 
-                System.out.println("SIM ENGINE: Chaining event to process consequences of the action. New depth: " + (depth + 1));
+                logger.info("SIM ENGINE: Chaining event to process consequences of the action. New depth: {}", depth + 1);
                 processEvent(updatedDevice, depth + 1);
             });
 
         } catch (Exception e) {
-            System.err.println("SIM ENGINE: Error executing action for rule " + rule.getId() + ": " + e.getMessage());
+            logger.error("SIM ENGINE: Error executing action for rule {}: {}", rule.getId(), e.getMessage());
         }
     }
 }

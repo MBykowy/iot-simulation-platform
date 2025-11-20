@@ -1,8 +1,10 @@
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
-import {Dashboard} from './views/Dashboard';
+import { Routes, Route } from 'react-router-dom';
 import { useWebSocket } from './hooks/useWebSocket';
-
-
+import { MainLayout } from './views/MainLayout';
+import { DashboardView } from './views/DashboardView';
+import { DevicesView } from './views/DevicesView';
+import { AutomationView } from './views/AutomationView';
 
 const darkTheme = createTheme({
     palette: {
@@ -52,17 +54,20 @@ const darkTheme = createTheme({
 });
 
 function App() {
-    const stompClient = useWebSocket();
+    useWebSocket();
 
     return (
         <ThemeProvider theme={darkTheme}>
             <CssBaseline />
-            {/* 3. Przekazujemy klienta do Dashboardu */}
-            <Dashboard stompClient={stompClient} />
+            <Routes>
+                <Route path="/" element={<MainLayout />}>
+                    <Route index element={<DashboardView />} />
+                    <Route path="devices" element={<DevicesView />} />
+                    <Route path="automation" element={<AutomationView />} />
+                </Route>
+            </Routes>
         </ThemeProvider>
     );
 }
-
-
 
 export default App;
