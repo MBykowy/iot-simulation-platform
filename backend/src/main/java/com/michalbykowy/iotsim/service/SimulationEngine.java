@@ -1,16 +1,16 @@
 package com.michalbykowy.iotsim.service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.jayway.jsonpath.JsonPath;
 import com.michalbykowy.iotsim.model.Device;
 import com.michalbykowy.iotsim.model.Rule;
 import com.michalbykowy.iotsim.repository.DeviceRepository;
 import com.michalbykowy.iotsim.repository.RuleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
-import com.jayway.jsonpath.JsonPath;
 
 import java.util.List;
 import java.util.Map;
@@ -20,19 +20,19 @@ public class SimulationEngine {
 
     private static final Logger logger = LoggerFactory.getLogger(SimulationEngine.class);
 
-    @Autowired
-    private RuleRepository ruleRepository;
-
-    @Autowired
-    private DeviceRepository deviceRepository;
-
-    @Autowired
-    private SimpMessagingTemplate messagingTemplate;
-
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final RuleRepository ruleRepository;
+    private final DeviceRepository deviceRepository;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final ObjectMapper objectMapper;
 
     private static final int MAX_RECURSION_DEPTH = 10;
+
+    public SimulationEngine(RuleRepository ruleRepository, DeviceRepository deviceRepository, SimpMessagingTemplate messagingTemplate, ObjectMapper objectMapper) {
+        this.ruleRepository = ruleRepository;
+        this.deviceRepository = deviceRepository;
+        this.messagingTemplate = messagingTemplate;
+        this.objectMapper = objectMapper;
+    }
 
     /**
      * Inicjuje łańcuch przetwarzania zdarzeń z głębokością 0
@@ -61,7 +61,7 @@ public class SimulationEngine {
 
         for (Rule rule : relevantRules) {
             if (checkCondition(rule, changedDevice)) {
-                logger.info("SIM ENGINE (Depth " + depth + "): Condition met for rule '" + rule.getName() + "'. Executing action.");
+                logger.info("SIM ENGINE (Depth {}): Condition met for rule '{}'. Executing action.", depth, rule.getName());
                 executeAction(rule, depth);
             }
         }
@@ -69,7 +69,9 @@ public class SimulationEngine {
 
     private boolean checkCondition(Rule rule, Device device) {
         try {
-            Map<String, Object> triggerConfig = objectMapper.readValue(rule.getTriggerConfig(), Map.class);
+            String json = "";
+            Map<String, Object> triggerConfig = objectMapper.readValue(json, new TypeReference<>() {
+            });
             String path = (String) triggerConfig.get("path");
             String operator = (String) triggerConfig.get("operator");
             Object expectedValue = triggerConfig.get("value");
@@ -103,7 +105,9 @@ public class SimulationEngine {
      */
     private void executeAction(Rule rule, int depth) {
         try {
-            Map<String, Object> actionConfig = objectMapper.readValue(rule.getActionConfig(), Map.class);
+            String json = "";
+            Map<String, Object> actionConfig = objectMapper.readValue(json, new TypeReference<>() {
+            });
             String targetDeviceId = (String) actionConfig.get("deviceId");
             Object newStateObj = actionConfig.get("newState");
             String newStateJson = objectMapper.writeValueAsString(newStateObj);

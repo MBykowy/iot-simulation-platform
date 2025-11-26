@@ -19,16 +19,20 @@ import java.util.UUID;
 @Service
 public class DeviceService {
 
-    @Autowired
-    private DeviceRepository deviceRepository;
-    @Autowired
-    private SimpMessagingTemplate messagingTemplate;
-    @Autowired
-    private SimulationEngine simulationEngine;
-    @Autowired
-    private ObjectMapper objectMapper;
-    @Autowired
-    private TimeSeriesService timeSeriesService;
+
+    private final DeviceRepository deviceRepository;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final SimulationEngine simulationEngine;
+    private final ObjectMapper objectMapper;
+    private final TimeSeriesService timeSeriesService;
+
+    public DeviceService(DeviceRepository deviceRepository, SimpMessagingTemplate messagingTemplate, SimulationEngine simulationEngine, ObjectMapper objectMapper, TimeSeriesService timeSeriesService) {
+        this.deviceRepository = deviceRepository;
+        this.messagingTemplate = messagingTemplate;
+        this.simulationEngine = simulationEngine;
+        this.objectMapper = objectMapper;
+        this.timeSeriesService = timeSeriesService;
+    }
 
     public List<Device> getAllDevices() {
         return deviceRepository.findAll();

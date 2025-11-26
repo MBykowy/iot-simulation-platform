@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import type { Device } from '../types';
 import { Modal, Box, Typography, Button, Select, MenuItem, TextField, FormControl, InputLabel, Grid, Paper, IconButton } from '@mui/material';
-import DeleteIcon from "@mui/icons-material/Delete";
-import { PlayArrow } from "@mui/icons-material";
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import DeleteIcon from '@mui/icons-material/Delete';
 
-const API_URL = 'http://localhost:8081';
+const API_URL = import.meta.env.VITE_API_URL || window.location.origin;
 
 const style = {
     position: 'absolute' as 'absolute',
@@ -19,7 +19,7 @@ const style = {
 };
 
 interface SimulationField {
-    id: number; // Dla unikalnych kluczy w React
+    id: number;
     name: string;
     pattern: 'SINE' | 'RANDOM';
     parameters: Record<string, number>;
@@ -40,6 +40,7 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
             try {
                 const config = JSON.parse(device.simulationConfig);
                 setIntervalMs(config.intervalMs || 2000);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const loadedFields = Object.entries(config.fields).map(([name, fieldConfig]: [string, any], index) => ({
                     id: index,
                     name,
@@ -68,6 +69,7 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
 
     const handleStart = () => {
         if (!device) return;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const fieldsAsMap = fields.reduce((acc, field) => {
             if (field.name) {
                 acc[field.name] = { pattern: field.pattern, parameters: field.parameters };
@@ -84,7 +86,12 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
         }).then(onClose).catch(console.error);
     };
 
-    const handleStop = () => { /* ... bez zmian */ };
+    const handleStop = () => {
+        if (!device) return;
+        fetch(`${API_URL}/api/devices/${device.id}/simulation`, {
+            method: 'DELETE'
+        }).then(onClose).catch(console.error);
+    };
 
     const renderParams = (field: SimulationField) => {
         const handleParamChange = (paramName: string, value: string) => {
@@ -116,10 +123,10 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
                 {fields.map((field) => (
                     <Paper key={field.id} variant="outlined" sx={{ p: 2, mb: 2 }}>
                         <Grid container spacing={2} alignItems="center">
-                            <Grid item xs={12} sm={4}>
+                            <Grid size={{ xs: 12, sm: 4 }}>
                                 <TextField fullWidth size="small" label="Field Name" value={field.name} onChange={e => updateField(field.id, 'name', e.target.value)} />
                             </Grid>
-                            <Grid item xs={12} sm={4}>
+                            <Grid size={{ xs: 12, sm: 4 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel>Pattern</InputLabel>
                                     <Select value={field.pattern} label="Pattern" onChange={e => updateField(field.id, 'pattern', e.target.value as any)}>
@@ -128,17 +135,17 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
                                     </Select>
                                 </FormControl>
                             </Grid>
-                            <Grid item xs={12} sm={4} sx={{ textAlign: 'right' }}>
+                            <Grid size={{ xs: 12, sm: 4 }} sx={{ textAlign: 'right' }}>
                                 <IconButton onClick={() => removeField(field.id)} color="warning"><DeleteIcon /></IconButton>
                             </Grid>
-                            <Grid item xs={12}>
+                            <Grid size={{ xs: 12 }}>
                                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>{renderParams(field)}</Box>
                             </Grid>
                         </Grid>
                     </Paper>
                 ))}
 
-                <Button startIcon={<PlayArrow />} onClick={addField} sx={{ mt: 1 }}>Add Field</Button>
+                <Button startIcon={<AddCircleOutlineIcon />} onClick={addField} sx={{ mt: 1 }}>Add Field</Button>
 
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}>
                     <Button variant="contained" color="error" onClick={handleStop} disabled={!device?.simulationActive}>Stop Simulation</Button>

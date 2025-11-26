@@ -3,7 +3,8 @@ import { Client, type IMessage } from '@stomp/stompjs';
 import { useAppStore } from '../stores/appStore';
 import type { Device } from '../types';
 
-const WS_URL = 'http://localhost:8081'.replace(/^http/, 'ws') + '/ws';
+const protocol = window.location.protocol === 'https' ? 'wss:' : 'ws:';
+const WS_URL = `${protocol}//${window.location.host}/ws`;
 
 export function useWebSocket() {
     const clientRef = useRef<Client | null>(null);

@@ -25,15 +25,19 @@ public class DataGeneratorService {
 
     private static final Logger logger = LoggerFactory.getLogger(DataGeneratorService.class);
 
-    @Autowired
-    private DeviceRepository deviceRepository;
-    @Autowired
-    private DeviceService deviceService;
-    @Autowired
-    private ObjectMapper objectMapper;
+
+    private final DeviceRepository deviceRepository;
+    private final DeviceService deviceService;
+    private final ObjectMapper objectMapper;
 
     private final Map<String, Long> lastUpdateTimestamps = new ConcurrentHashMap<>();
     private final Random random = new Random();
+
+    public DataGeneratorService(DeviceRepository deviceRepository, DeviceService deviceService, ObjectMapper objectMapper) {
+        this.deviceRepository = deviceRepository;
+        this.deviceService = deviceService;
+        this.objectMapper = objectMapper;
+    }
 
     @PostConstruct
     public void init() {

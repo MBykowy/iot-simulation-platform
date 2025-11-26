@@ -48,11 +48,12 @@ export function DevicesView() {
                     {devices.length > 0 ? (
                         <Grid container spacing={3}>
                             {devices.map((device, index) => (
-                                <Grid item xs={12} sm={6} md={4} lg={3} key={device.id}>
+                                <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={device.id}>
                                     <Grow in timeout={300 + index * 100}>
                                         <Box>
                                             <DeviceCard
                                                 device={device}
+                                                // USUNIĘTO: onClick={() => {}} - to powodowało błąd
                                                 onHistoryClick={() => handleHistoryClick(device)}
                                                 onSimulateClick={() => handleSimulateClick(device)}
                                                 onDelete={removeDevice}

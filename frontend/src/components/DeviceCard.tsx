@@ -1,10 +1,13 @@
 import type { Device } from '../types';
-import { Card, CardContent, Typography, Box, Chip, IconButton } from '@mui/material';
+import { Card, CardContent, Typography, Box, Chip, IconButton, Stack, Tooltip } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import SensorsIcon from '@mui/icons-material/Sensors';
+import LightbulbIcon from '@mui/icons-material/Lightbulb';
+import HistoryIcon from '@mui/icons-material/Timeline';
 
-const API_URL = 'http://localhost:8081';
+const API_URL = import.meta.env.VITE_API_URL || window.location.origin;
 
 interface DeviceCardProps {
     device: Device;
@@ -12,15 +15,6 @@ interface DeviceCardProps {
     onSimulateClick: () => void;
     onDelete: (deviceId: string) => void;
 }
-
-const formatJson = (jsonString: string) => {
-    try {
-        const obj = JSON.parse(jsonString);
-        return JSON.stringify(obj, null, 2);
-    } catch (e) {
-        return jsonString;
-    }
-};
 
 export function DeviceCard({ device, onHistoryClick, onSimulateClick, onDelete }: DeviceCardProps) {
 
@@ -57,62 +51,66 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onDelete }
     };
 
     return (
-        <Card onClick={onHistoryClick} sx={{ cursor: 'pointer', position: 'relative' }}>
-            <Box sx={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 0.5 }}>
-                <IconButton
-                    aria-label="rename"
-                    onClick={handleRename}
-                    size="small"
-                    sx={{ color: 'text.secondary', '&:hover': { color: 'primary.light' } }}
-                >
-                    <EditIcon fontSize="small" />
-                </IconButton>
-                <IconButton
-                    aria-label="delete"
-                    onClick={handleDelete}
-                    size="small"
-                    sx={{ color: 'text.secondary', '&:hover': { color: 'error.light' } }}
-                >
-                    <DeleteIcon fontSize="small" />
-                </IconButton>
-            </Box>
-            <CardContent>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <Typography variant="h6" component="div">
-                        {device.name}
-                    </Typography>
+        <Card sx={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
+            <CardContent sx={{ flexGrow: 1 }}>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
+                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                        {device.ioType === 'SENSOR' ? <SensorsIcon color="primary" /> : <LightbulbIcon color="secondary" />}
+                        <Typography variant="h6" component="div" noWrap>
+                            {device.name}
+                        </Typography>
+                    </Stack>
                     <Chip
-                        label={device.ioType}
-                        color={device.ioType === 'SENSOR' ? 'primary' : 'secondary'}
+                        label={device.type.charAt(0)}
                         size="small"
+                        title={device.type}
+                        sx={{ fontWeight: 'bold' }}
                     />
-                </Box>
-                {device.type === 'VIRTUAL' && (
-                    <IconButton
-                        aria-label="simulate"
-                        onClick={(e) => { e.stopPropagation(); onSimulateClick(); }}
-                        size="small"
-                        sx={{
-                            position: 'absolute', top: 8, left: 8,
-                            color: device.simulationActive ? 'secondary.main' : 'text.secondary',
-                            '&:hover': { color: 'secondary.light' }
-                        }}
-                    >
-                        <AutoAwesomeIcon fontSize="small"
-                                         sx={device.simulationActive ? { animation: 'spin 2s linear infinite', '@keyframes spin': { '0%': { transform: 'rotate(0deg)' }, '100%': { transform: 'rotate(360deg)' } } } : {}}
-                        />
-                    </IconButton>
-                )}
-
-                <Typography sx={{ mb: 1.5 }} color="text.secondary">
+                </Stack>
+                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
                     ID: {device.id}
                 </Typography>
-                <Box component="pre" sx={{ backgroundColor: 'rgba(0,0,0,0.2)', padding: 1, borderRadius: 1, whiteSpace: 'pre-wrap', wordBreak: 'break-all', fontSize: '0.875rem' }}>
-                    <code>
-                        {formatJson(device.currentState)}
-                    </code>
+                <Box
+                    component="pre"
+                    sx={{
+                        bgcolor: 'action.hover',
+                        p: 1.5,
+                        borderRadius: 1,
+                        whiteSpace: 'pre-wrap',
+                        wordBreak: 'break-all',
+                        fontSize: '0.8rem',
+                        fontFamily: 'monospace',
+                        maxHeight: 100,
+                        overflowY: 'auto',
+                    }}
+                >
+                    <code>{JSON.stringify(JSON.parse(device.currentState || '{}'), null, 2)}</code>
                 </Box>
             </CardContent>
+            <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', borderTop: 1, borderColor: 'divider' }}>
+                <Stack direction="row" spacing={0.5}>
+                    <Tooltip title="Rename">
+                        <IconButton size="small" onClick={handleRename}><EditIcon fontSize="small" /></IconButton>
+                    </Tooltip>
+                    <Tooltip title="Delete">
+                        <IconButton size="small" onClick={handleDelete}><DeleteIcon fontSize="small" /></IconButton>
+                    </Tooltip>
+                </Stack>
+                <Stack direction="row" spacing={0.5}>
+                    {device.type === 'VIRTUAL' && (
+                        <Tooltip title="Configure Simulation">
+                            <IconButton size="small" onClick={onSimulateClick} color={device.simulationActive ? 'secondary' : 'default'}>
+                                <AutoAwesomeIcon fontSize="small" sx={device.simulationActive ? { animation: 'spin 2s linear infinite' } : {}} />
+                            </IconButton>
+                        </Tooltip>
+                    )}
+                    {device.ioType === 'SENSOR' && (
+                        <Tooltip title="View History">
+                            <IconButton size="small" onClick={onHistoryClick}><HistoryIcon fontSize="small" /></IconButton>
+                        </Tooltip>
+                    )}
+                </Stack>
+            </Box>
         </Card>
     );
 }

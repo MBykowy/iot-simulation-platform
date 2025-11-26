@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import type {Device} from '../types';
 import { Box, Button, TextField, Select, MenuItem, FormControl, InputLabel, Typography, Grid, Paper } from '@mui/material';
 
-const API_URL = 'http://localhost:8081';
+
+const API_URL = import.meta.env.VITE_API_URL || window.location.origin;
 
 interface AddRuleFormProps {
     devices: Device[];
@@ -57,7 +58,6 @@ export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
             .then(response => {
                 if (!response.ok) throw new Error('Failed to create rule');
                 onRuleAdded();
-
                 setRuleName('');
             })
             .catch(error => console.error('Error creating rule:', error));
@@ -67,11 +67,11 @@ export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
             <Typography variant="h6" gutterBottom>Create New Rule</Typography>
             <Grid container spacing={2}>
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <TextField fullWidth label="Rule Name" value={ruleName} onChange={e => setRuleName(e.target.value)} required />
                 </Grid>
 
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                     <Paper elevation={3} sx={{ p: 2 }}>
                         <Typography variant="subtitle1" gutterBottom>IF (Trigger)</Typography>
                         <FormControl fullWidth sx={{ mb: 2 }}>
@@ -93,7 +93,7 @@ export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
                     </Paper>
                 </Grid>
 
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                     <Paper elevation={3} sx={{ p: 2 }}>
                         <Typography variant="subtitle1" gutterBottom>THEN (Action)</Typography>
                         <FormControl fullWidth sx={{ mb: 2 }}>
@@ -106,7 +106,7 @@ export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
                     </Paper>
                 </Grid>
 
-                <Grid item xs={12}>
+                <Grid size={{ xs: 12 }}>
                     <Button type="submit" variant="contained" color="primary" fullWidth>Create Rule</Button>
                 </Grid>
             </Grid>

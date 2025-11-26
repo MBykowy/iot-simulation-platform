@@ -7,8 +7,11 @@ import java.util.Map;
 @Service
 public class MqttMessageService {
 
-    @Autowired
-    private DeviceService deviceService;
+    private final DeviceService deviceService;
+
+    public MqttMessageService(DeviceService deviceService) {
+        this.deviceService = deviceService;
+    }
 
     public void handleMessage(String topic, String payload) {
         try {

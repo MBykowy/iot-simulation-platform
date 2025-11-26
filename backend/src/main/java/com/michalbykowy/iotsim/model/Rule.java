@@ -6,7 +6,7 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 
 @Entity
-@Table(name = "rules") // Jawnie nazywamy tabelę "rules", aby uniknąć konfliktu z słowem kluczowym "rule" w SQL
+@Table(name = "rules")
 public class Rule {
 
     @Id

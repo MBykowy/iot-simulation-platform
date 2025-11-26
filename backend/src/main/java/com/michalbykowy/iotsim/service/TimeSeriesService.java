@@ -7,28 +7,26 @@ import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.WriteApiBlocking;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
 import com.influxdb.query.FluxRecord;
 import com.influxdb.query.FluxTable;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-
-
-import java.time.Instant;
 
 @Service
 public class TimeSeriesService {
 
-    @Autowired
-    private InfluxDBClient influxDBClient;
+    private final InfluxDBClient influxDBClient;
+    private final ObjectMapper objectMapper;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    public TimeSeriesService(InfluxDBClient influxDBClient, ObjectMapper objectMapper) {
+        this.influxDBClient = influxDBClient;
+        this.objectMapper = objectMapper;
+    }
 
     @Value("${influx.bucket}")
     private String bucket;

@@ -13,11 +13,14 @@ import java.util.UUID;
 
 @Service
 public class RuleService {
-    @Autowired
-    private RuleRepository ruleRepository;
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final RuleRepository ruleRepository;
+    private final ObjectMapper objectMapper;
+
+    public RuleService(RuleRepository ruleRepository, ObjectMapper objectMapper) {
+        this.ruleRepository = ruleRepository;
+        this.objectMapper = objectMapper;
+    }
 
     public List<Rule> getAllRules() {
         return ruleRepository.findAll();

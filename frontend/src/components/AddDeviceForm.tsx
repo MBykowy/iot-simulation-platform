@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-// Importy komponentów MUI
 import { Box, Button, TextField, Select, MenuItem, FormControl, InputLabel, Typography } from '@mui/material';
+import {useAppStore} from "../stores/appStore.tsx";
 
-const API_URL = 'http://localhost:8081';
+const API_URL = '';
 
 export function AddDeviceForm() {
+    const showSnackbar = useAppStore((state) => state.showSnackbar);
     const [name, setName] = useState('');
     const [ioType, setIoType] = useState('SENSOR');
 
@@ -22,8 +23,13 @@ export function AddDeviceForm() {
                 if (!response.ok) { throw new Error('Failed to create device'); }
                 setName('');
                 setIoType('SENSOR');
+                showSnackbar('Virtual device created successfully!', 'success');
             })
-            .catch(error => console.error('Error creating device:', error));
+            .catch(error => {
+                console.error('Error creating device:', error)
+                showSnackbar('Error creating device.', 'error');
+            });
+
     };
 
     return (

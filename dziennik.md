@@ -65,7 +65,7 @@
     *   **Backend:** Zintegrowano `SimulationEngine` z istniejącymi punktami wejścia zdarzeń (`POST /api/events` oraz `MqttMessageService`), co pozwala na przetwarzanie zarówno zdarzeń symulowanych, jak i pochodzących ze sprzętu.
 *   **Stworzono interfejs użytkownika do zarządzania automatyzacją:**
     *   **Backend:** Dodano endpointy `GET /api/rules` i `POST /api/rules`.
-    *   **Frontend:** Zbudowano kompleksowy widok `RulesManager`, który wyświetla listę istniejących reguł oraz zawiera formularz `AddRuleForm` do tworzenia nowych.
+    *   **Frontend:** Zbudowano kompleksowy widok `AutomationView`, który wyświetla listę istniejących reguł oraz zawiera formularz `AddRuleForm` do tworzenia nowych.
     *   **Frontend:** Formularz umożliwia zdefiniowanie prostej reguły "IF-THEN" poprzez wybór urządzeń i warunków z list rozwijanych.
 *   **Osiągnięto pełną pętlę automatyzacji:** Użytkownik może teraz z poziomu UI stworzyć regułę, a następnie za pomocą symulatora zdarzeń wywołać warunek i zaobserwować natychmiastową, automatyczną reakcję systemu w postaci zmiany stanu innego urządzenia.
   
@@ -82,7 +82,7 @@
     *   **Backend:** Zintegrowano `SimulationEngine` z istniejącymi punktami wejścia zdarzeń (`POST /api/events` oraz `MqttMessageService`), co pozwala na przetwarzanie zarówno zdarzeń symulowanych, jak i pochodzących ze sprzętu.
 *   **Stworzono interfejs użytkownika do zarządzania automatyzacją:**
     *   **Backend:** Dodano endpointy `GET /api/rules` i `POST /api/rules`.
-    *   **Frontend:** Zbudowano kompleksowy widok `RulesManager`, który wyświetla listę istniejących reguł oraz zawiera formularz `AddRuleForm` do tworzenia nowych.
+    *   **Frontend:** Zbudowano kompleksowy widok `AutomationView`, który wyświetla listę istniejących reguł oraz zawiera formularz `AddRuleForm` do tworzenia nowych.
     *   **Frontend:** Formularz umożliwia zdefiniowanie prostej reguły "IF-THEN" poprzez wybór urządzeń i warunków z list rozwijanych.
 *   **Osiągnięto pełną pętlę automatyzacji:** Użytkownik może teraz z poziomu UI stworzyć regułę, a następnie za pomocą symulatora zdarzeń wywołać warunek i zaobserwować natychmiastową, automatyczną reakcję systemu w postaci zmiany stanu innego urządzenia.
 
@@ -115,12 +115,12 @@
     *   Ujednolicono logikę przetwarzania zdarzeń. Niezależnie od źródła (HTTP REST, MQTT), każde zdarzenie jest teraz obsługiwane przez tę samą metodę `DeviceService.handleDeviceEvent`, co zapewnia spójność działania i eliminuje duplikację kodu.
 *   **Uzupełniono podstawową funkcjonalność CRUD (Create, Read, Update, Delete):**
     *   **Backend:** Zaimplementowano w warstwie serwisowej i kontrolerze endpointy `DELETE` (`/api/devices/{id}` oraz `/api/rules/{id}`).
-    *   **Frontend:** Dodano do interfejsu użytkownika przyciski umożliwiające usuwanie urządzeń (na `DeviceCard`) oraz reguł (na liście w `RulesManager`), zamykając podstawowy cykl zarządzania obiektami w systemie.
+    *   **Frontend:** Dodano do interfejsu użytkownika przyciski umożliwiające usuwanie urządzeń (na `DeviceCard`) oraz reguł (na liście w `AutomationView`), zamykając podstawowy cykl zarządzania obiektami w systemie.
 *   **Zrealizowano refaktoryzację architektury frontendu w celu przygotowania aplikacji do dalszej rozbudowy:**
     *   Wprowadzono bibliotekę do zarządzania stanem globalnym **Zustand**, tworząc centralny magazyn (`appStore`) dla całej aplikacji.
     *   Przeniesiono logikę zarządzania listą urządzeń (`devices`) oraz danymi do wykresów (`chartData`) z komponentów do globalnego `store`.
     *   Wyizolowano całą logikę połączenia WebSocket do dedykowanego, niestandardowego hooka (`useWebSocket`), który komunikuje się bezpośrednio z `appStore`.
-    *   Podzielono główny komponent `App.tsx` na mniejsze, bardziej wyspecjalizowane części: `App.tsx` (zarządzanie motywem i globalnymi hookami) oraz `Dashboard.tsx` (odpowiedzialny za layout i renderowanie widoków).
+    *   Podzielono główny komponent `App.tsx` na mniejsze, bardziej wyspecjalizowane części: `App.tsx` (zarządzanie motywem i globalnymi hookami) oraz `MainLayout.tsx` (odpowiedzialny za layout i renderowanie widoków).
 *   **Naprawiono i usprawniono wizualizację danych historycznych:**
     *   Zdiagnozowano i naprawiono błąd, w wyniku którego wykresy dla różnych urządzeń pokazywały te same dane. Logika została przeniesiona do `appStore` i jest teraz poprawnie powiązana z aktywnie wybranym urządzeniem.
     *   Dodano do wykresu funkcjonalność "inteligentnego" wykrywania i wyboru wyświetlanych zmiennych, co pozwala na analizę danych z czujników o wielu polach.
@@ -140,3 +140,12 @@
 *   **Naprawiono krytyczne błędy:**
     *   Rozwiązano problem z awarią aplikacji spowodowaną niezgodnością schematu bazy danych po modyfikacji modelu `Device`.
     *   Naprawiono błąd logiczny, który blokował zapis danych symulacyjnych do InfluxDB. Ujednolicono format generowanych danych JSON, co przywróciło ich widoczność na wykresach.
+---
+**2025-11-14:**
+
+*   **Przeprowadzono gruntowną restrukturyzację architektury frontendu:**
+    *   Wdrożono bibliotekę `react-router-dom` do obsługi routingu po stronie klienta, przekształcając aplikację w pełnoprawne SPA (Single Page Application).
+    *   Zastąpiono monolityczny komponent `Dashboard` modularnym podziałem na osobne widoki: `DashboardView` (panel sterowania), `DevicesView` (lista i detale urządzeń) oraz `AutomationView` (zarządzanie regułami).
+    *   Zaimplementowano komponenty `MainLayout` i `Sidebar`, tworząc stałą ramę nawigacyjną dla całej aplikacji.
+*   **Zoptymalizowano przepływ danych w widokach:**
+    *   Zmodyfikowano widok `AutomationView` (dawniej `RulesManager`), eliminując zależność od danych przekazywanych przez komponent nadrzędny (`props`). Widok został podpięty bezpośrednio do globalnego stanu `Zustand`, co rozwiązało krytyczny błąd (`undefined devices`) występujący przy bezpośrednim wejściu na podstronę automatyzacji.

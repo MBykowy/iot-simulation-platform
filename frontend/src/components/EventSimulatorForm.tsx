@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import type {Device} from '../types';
-// Importy komponentów MUI
 import { Box, Button, TextField, Select, MenuItem, FormControl, InputLabel, Typography } from '@mui/material';
 
-const API_URL = 'http://localhost:8081';
+const API_URL = '';
 
 interface EventSimulatorFormProps {
     devices: Device[];

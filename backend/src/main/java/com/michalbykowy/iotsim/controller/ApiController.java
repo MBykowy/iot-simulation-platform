@@ -1,26 +1,15 @@
 package com.michalbykowy.iotsim.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.michalbykowy.iotsim.model.Device;
+import com.michalbykowy.iotsim.model.Rule;
 import com.michalbykowy.iotsim.service.DeviceService;
 import com.michalbykowy.iotsim.service.RuleService;
 import com.michalbykowy.iotsim.service.TimeSeriesService;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-import com.michalbykowy.iotsim.model.Device;
-import com.michalbykowy.iotsim.repository.DeviceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
-import org.springframework.http.HttpStatus;
-import java.util.UUID;
-import com.michalbykowy.iotsim.service.SimulationEngine;
-
-import com.michalbykowy.iotsim.model.Rule;
-import com.michalbykowy.iotsim.repository.RuleRepository;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
 import java.util.Map;

@@ -1,11 +1,11 @@
 import { useState, useEffect } from 'react';
-import { useAppStore } from '../stores/appStore'; // <--- Dodano import store'a
+import { useAppStore } from '../stores/appStore';
 import { AddRuleForm } from '../components/AddRuleForm';
-import { Box, Typography, List, ListItem, ListItemText, Paper, IconButton, Fade } from '@mui/material'; // Dodano Fade dla spójności
+import { Box, Typography, List, ListItem, ListItemText, Paper, IconButton, Fade } from '@mui/material';
 import DeleteIcon from "@mui/icons-material/Delete";
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 
-const API_URL = 'http://localhost:8081';
+const API_URL = '';
 
 interface Rule {
     id: string;
@@ -93,8 +93,8 @@ export function AutomationView() {
                             </List>
                         </Paper>
                     ) : (
-                        <Box sx={{ py: 4, textAlign: 'center', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: 2 }}>
-                            <Typography color="text.secondary">No rules defined yet.</Typography>
+                        <Box sx={{ py: 4, textAlign: 'center', border: '1px dashed', borderColor: 'divider', borderRadius: 2 }}>
+                            <Typography color="text.secondary">No rules defined yet. Use the form below to create one.</Typography>
                         </Box>
                     )}
 

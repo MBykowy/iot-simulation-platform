@@ -1,45 +1,94 @@
+import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Box, Toolbar, AppBar, Typography, Container } from '@mui/material';
+import { Box, Toolbar, AppBar, Typography, Container, IconButton, useTheme, useMediaQuery, Drawer } from '@mui/material';
 import { Sidebar } from '../components/Sidebar';
-import { DeveloperBoard } from "@mui/icons-material";
+import { DeveloperBoard, Menu as MenuIcon, Brightness4, Brightness7 } from "@mui/icons-material";
+import { useAppStore } from '../stores/appStore';
+
+const DRAWER_WIDTH = 240;
 
 export function MainLayout() {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const [mobileOpen, setMobileOpen] = useState(false);
+
+    const { themeMode, toggleThemeMode } = useAppStore();
+
+    const handleDrawerToggle = () => {
+        setMobileOpen(!mobileOpen);
+    };
+
+    const drawerContent = (
+        <div>
+            <Toolbar />
+            <Sidebar />
+        </div>
+    );
+
     return (
-        <Box sx={{ display: 'flex', minHeight: '100vh', background: 'linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%)' }}>
+        <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
             <AppBar
                 position="fixed"
-                elevation={0}
                 sx={{
-                    zIndex: (theme) => theme.zIndex.drawer + 1,
+                    width: { md: `calc(100% - ${DRAWER_WIDTH}px)` },
+                    ml: { md: `${DRAWER_WIDTH}px` },
                     background: 'rgba(22, 22, 22, 0.8)',
-                    backdropFilter: 'blur(20px)',
-                    borderBottom: '1px solid rgba(96, 165, 250, 0.1)',
+                    backdropFilter: 'blur(10px)',
                 }}
             >
-                <Toolbar sx={{ py: 1 }}>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                        <DeveloperBoard sx={{ fontSize: 32, color: '#60a5fa' }} />
-                        <Typography variant="h6" component="div" sx={{ fontWeight: 700 }}>
-                            IoT Simulation Platform
-                        </Typography>
-                    </Box>
+                <Toolbar>
+                    <IconButton
+                        color="inherit"
+                        aria-label="open drawer"
+                        edge="start"
+                        onClick={handleDrawerToggle}
+                        sx={{ mr: 2, display: { md: 'none' } }}
+                    >
+                        <MenuIcon />
+                    </IconButton>
+                    <DeveloperBoard sx={{ mr: 1, display: { xs: 'none', md: 'flex' } }} />
+                    <Typography variant="h6" noWrap component="div" sx={{ flexGrow: 1 }}>
+                        IoT Platform
+                    </Typography>
+                    <IconButton sx={{ ml: 1 }} onClick={toggleThemeMode} color="inherit">
+                        {themeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+                    </IconButton>
                 </Toolbar>
             </AppBar>
 
             <Box
                 component="nav"
-                sx={{
-                    width: 240,
-                    flexShrink: 0,
-                    borderRight: '1px solid rgba(96, 165, 250, 0.1)',
-                    background: 'rgba(22, 22, 22, 0.6)',
-                }}
+                sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}
             >
-                <Toolbar />
-                <Sidebar />
+                {isMobile ? (
+                    <Drawer
+                        variant="temporary"
+                        open={mobileOpen}
+                        onClose={handleDrawerToggle}
+                        ModalProps={{ keepMounted: true }}
+                        sx={{
+                            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH },
+                        }}
+                    >
+                        {drawerContent}
+                    </Drawer>
+                ) : (
+                    <Drawer
+                        variant="permanent"
+                        sx={{
+                            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH },
+                        }}
+                        open
+                    >
+                        {drawerContent}
+                    </Drawer>
+                )}
             </Box>
 
-            <Box component="main" sx={{ flexGrow: 1, p: 3, width: `calc(100% - 240px)` }}>
+            <Box
+                component="main"
+                sx={{ flexGrow: 1, p: 3, width: { md: `calc(100% - ${DRAWER_WIDTH}px)` } }}
+            >
                 <Toolbar />
                 <Container maxWidth="xl">
                     <Outlet />

@@ -1,13 +1,22 @@
 import { create } from 'zustand';
 import type { Device } from '../types';
 
-const API_URL = 'http://localhost:8081';
+const API_URL = window.location.origin;
 const MAX_CHART_POINTS = 100;
 
 export interface ChartDataPoint {
     time: number;
     [key: string]: number | string;
 }
+
+type SnackbarSeverity = 'success' | 'error' | 'info' | 'warning';
+
+interface SnackbarState {
+    open: boolean;
+    message: string;
+    severity: SnackbarSeverity;
+}
+
 
 interface AppState {
     //urządzenia
@@ -16,6 +25,7 @@ interface AppState {
     addOrUpdateDevice: (device: Device) => void;
     removeDevice: (deviceId: string) => void;
     //wykres
+
     chartData: ChartDataPoint[];
     isChartLoading: boolean;
     activeChartDeviceId: string | null;
@@ -23,6 +33,13 @@ interface AppState {
     loadChartData: (deviceId: string, range: string) => Promise<void>;
     appendChartData: (device: Device) => void;
     clearChartData: () => void;
+    //motyw
+    themeMode: 'light' | 'dark';
+    toggleThemeMode: () => void;
+    //Snakbar
+    snackbar: SnackbarState;
+    showSnackbar: (message: string, severity: SnackbarSeverity) => void;
+    hideSnackbar: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -103,5 +120,13 @@ export const useAppStore = create<AppState>((set, get) => ({
         } catch {}
     },
 
+    snackbar: { open: false, message: '', severity: 'info' },
+    showSnackbar: (message, severity) => set({ snackbar: { open: true, message, severity } }),
+    hideSnackbar: () => set(state => ({ snackbar: { ...state.snackbar, open: false } })),
+
+    themeMode: 'dark',
+    toggleThemeMode: () => set((state) => ({
+        themeMode: state.themeMode === 'light' ? 'dark' : 'light',
+    })),
     clearChartData: () => set({ chartData: [], isChartLoading: false, activeChartDeviceId: null }),
 }));
