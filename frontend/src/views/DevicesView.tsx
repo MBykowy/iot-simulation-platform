@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAppStore } from '../stores/appStore';
-import { Grid, Paper, Box, Typography, Fade, Grow } from '@mui/material';
+import { Grid, Paper, Box, Typography, Fade, Grow, Container } from '@mui/material';
 import { DeviceCard } from '../components/DeviceCard';
 import { DeviceHistoryModal } from '../components/DeviceHistoryModal';
 import { SimulationConfigModal } from '../components/SimulationConfigModal';
@@ -32,6 +32,7 @@ export function DevicesView() {
     };
 
     return (
+        <Container maxWidth="xl">
         <>
             <Fade in timeout={800}>
                 <Paper
@@ -53,7 +54,6 @@ export function DevicesView() {
                                         <Box>
                                             <DeviceCard
                                                 device={device}
-                                                // USUNIĘTO: onClick={() => {}} - to powodowało błąd
                                                 onHistoryClick={() => handleHistoryClick(device)}
                                                 onSimulateClick={() => handleSimulateClick(device)}
                                                 onDelete={removeDevice}
@@ -73,5 +73,6 @@ export function DevicesView() {
             <DeviceHistoryModal device={historyDevice} open={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} />
             <SimulationConfigModal device={simulationDevice} open={isSimModalOpen} onClose={() => setIsSimModalOpen(false)} />
         </>
+        </Container>
     );
 }

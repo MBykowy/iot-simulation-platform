@@ -33,6 +33,7 @@ interface AppState {
     loadChartData: (deviceId: string, range: string) => Promise<void>;
     appendChartData: (device: Device) => void;
     clearChartData: () => void;
+    selectedRange: string;
     //motyw
     themeMode: 'light' | 'dark';
     toggleThemeMode: () => void;
@@ -45,6 +46,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set, get) => ({
     // urządzenia
     devices: [],
+    selectedRange: '15m',
 
     fetchDevices: async () => {
         try {
@@ -78,7 +80,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     setActiveChartDevice: (deviceId) => set({ activeChartDeviceId: deviceId }),
 
     loadChartData: async (deviceId, range) => {
-        set({ isChartLoading: true, chartData: [] });
+        set({ isChartLoading: true, chartData: [], selectedRange: range });
         try {
             const response = await fetch(`${API_URL}/api/devices/${deviceId}/history?range=${range}`);
             const historyData = await response.json();

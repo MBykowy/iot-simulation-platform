@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '../stores/appStore';
 import { AddRuleForm } from '../components/AddRuleForm';
-import { Box, Typography, List, ListItem, ListItemText, Paper, IconButton, Fade } from '@mui/material';
+import { Box, Typography, List, ListItem, ListItemText, Paper, IconButton, Fade, Container } from '@mui/material';
 import DeleteIcon from "@mui/icons-material/Delete";
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
 
@@ -50,6 +50,7 @@ export function AutomationView() {
     };
 
     return (
+        <Container maxWidth="xl">
         <Fade in timeout={800}>
             <Box>
                 <Paper
@@ -104,5 +105,6 @@ export function AutomationView() {
                 </Paper>
             </Box>
         </Fade>
+        </Container>
     );
 }

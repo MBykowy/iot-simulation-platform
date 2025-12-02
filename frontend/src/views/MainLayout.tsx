@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Outlet } from 'react-router-dom';
-import { Box, Toolbar, AppBar, Typography, Container, IconButton, useTheme, useMediaQuery, Drawer } from '@mui/material';
+import { Box, Toolbar, AppBar, Typography, IconButton, useTheme, useMediaQuery, Drawer } from '@mui/material';
 import { Sidebar } from '../components/Sidebar';
 import { DeveloperBoard, Menu as MenuIcon, Brightness4, Brightness7 } from "@mui/icons-material";
 import { useAppStore } from '../stores/appStore';
@@ -34,6 +34,8 @@ export function MainLayout() {
                     ml: { md: `${DRAWER_WIDTH}px` },
                     background: 'rgba(22, 22, 22, 0.8)',
                     backdropFilter: 'blur(10px)',
+                    borderBottom: 1,
+                    borderColor: 'divider'
                 }}
             >
                 <Toolbar>
@@ -66,18 +68,14 @@ export function MainLayout() {
                         open={mobileOpen}
                         onClose={handleDrawerToggle}
                         ModalProps={{ keepMounted: true }}
-                        sx={{
-                            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH },
-                        }}
+                        sx={{ '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH } }}
                     >
                         {drawerContent}
                     </Drawer>
                 ) : (
                     <Drawer
                         variant="permanent"
-                        sx={{
-                            '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH },
-                        }}
+                        sx={{ '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH } }}
                         open
                     >
                         {drawerContent}
@@ -87,12 +85,13 @@ export function MainLayout() {
 
             <Box
                 component="main"
-                sx={{ flexGrow: 1, p: 3, width: { md: `calc(100% - ${DRAWER_WIDTH}px)` } }}
+                sx={{
+                    flexGrow: 1,
+                    width: { md: `calc(100% - ${DRAWER_WIDTH}px)` }
+                }}
             >
                 <Toolbar />
-                <Container maxWidth="xl">
-                    <Outlet />
-                </Container>
+                <Outlet />
             </Box>
         </Box>
     );

@@ -1,10 +1,38 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { useAppStore } from '../stores/appStore';
 import { Box, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
 
+const parseRangeToMs = (range: string): number => {
+    const value = parseInt(range.slice(0, -1));
+    const unit = range.slice(-1);
+    switch (unit) {
+        case 'm': return value * 60 * 1000;
+        case 'h': return value * 60 * 60 * 1000;
+        case 'd': return value * 24 * 60 * 60 * 1000;
+        default: return 60 * 60 * 1000;
+    }
+};
+
 export function RealTimeChart() {
-    const chartData = useAppStore((state) => state.chartData);
+    const { chartData, selectedRange } = useAppStore(state => ({
+        chartData: state.chartData,
+        selectedRange: state.selectedRange,
+    }));
+
+    const [timeDomain, setTimeDomain] = useState<[number | 'auto', number | 'auto']>(['auto', 'auto']);
+
+    useEffect(() => {
+        const updateDomain = () => {
+            const now = Date.now();
+            const rangeMs = parseRangeToMs(selectedRange);
+            setTimeDomain([now - rangeMs, now]);
+        };
+
+        updateDomain();
+        const intervalId = setInterval(updateDomain, 1000);
+        return () => clearInterval(intervalId);
+    }, [selectedRange]);
 
     const allKeys = useMemo(() => {
         const keys = new Set<string>();
@@ -34,21 +62,16 @@ export function RealTimeChart() {
         setVisibleKeys(prev => ({ ...prev, [key]: !prev[key] }));
     };
 
-    const timeFormatter = (timestamp: number) => new Date(timestamp).toLocaleTimeString();
+    const timeFormatter = (timestamp: number) => new Date(timestamp).toLocaleTimeString('en-GB');
+
 
     return (
         <Box>
-            <FormGroup row sx={{ mb: 2 }}>
+            <FormGroup row sx={{ mb: 2, justifyContent: 'center' }}>
                 {allKeys.map(key => (
                     <FormControlLabel
                         key={key}
-                        control={
-                            <Checkbox
-                                checked={visibleKeys[key] || false}
-                                onChange={() => handleVisibilityChange(key)}
-                                size="small"
-                            />
-                        }
+                        control={<Checkbox checked={visibleKeys[key] || false} onChange={() => handleVisibilityChange(key)} size="small" />}
                         label={key}
                     />
                 ))}
@@ -57,8 +80,15 @@ export function RealTimeChart() {
             <ResponsiveContainer width="100%" height={400}>
                 <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.2)" />
-                    <XAxis dataKey="time" type="number" domain={['dataMin', 'dataMax']} tickFormatter={timeFormatter} stroke="#888" />
-                    <YAxis stroke="#888" />
+                    <XAxis
+                        dataKey="time"
+                        type="number"
+                        domain={timeDomain}
+                        tickFormatter={timeFormatter}
+                        stroke="#888"
+                        allowDataOverflow={true}
+                    />
+                    <YAxis stroke="#888" domain={['auto', 'auto']} />
                     <Tooltip labelFormatter={timeFormatter} contentStyle={{ backgroundColor: 'rgba(30, 30, 30, 0.8)', borderColor: 'rgba(255, 255, 255, 0.2)' }} />
                     <Legend />
                     {allKeys.map((key, index) => (

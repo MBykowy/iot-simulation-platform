@@ -20,7 +20,6 @@ public class Rule {
     @Column(length = 1024)
     private String actionConfig;
 
-    // JPA wymaga pustego konstruktora
     public Rule() {
     }
 

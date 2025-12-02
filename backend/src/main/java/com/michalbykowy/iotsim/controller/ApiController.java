@@ -1,6 +1,8 @@
 package com.michalbykowy.iotsim.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.influxdb.client.InfluxDBClient;
 import com.michalbykowy.iotsim.model.Device;
 import com.michalbykowy.iotsim.model.Rule;
 import com.michalbykowy.iotsim.service.DeviceService;
@@ -19,14 +21,16 @@ import java.util.Map;
 
 public class ApiController {
 
-    @Autowired
-    private DeviceService deviceService;
 
-    @Autowired
-    private RuleService ruleService;
+    private final DeviceService deviceService;
+    private final RuleService ruleService;
+    private final TimeSeriesService timeSeriesService;
 
-    @Autowired
-    private TimeSeriesService timeSeriesService;
+    public ApiController(DeviceService deviceService, RuleService ruleService, TimeSeriesService timeSeriesService) {
+        this.deviceService = deviceService;
+        this.ruleService = ruleService;
+        this.timeSeriesService = timeSeriesService;
+    }
 
     @PostMapping("/devices")
     public ResponseEntity<Device> createDevice(@RequestBody DeviceRequest deviceRequest) {
@@ -111,6 +115,12 @@ public class ApiController {
         }
     }
 
+
+
+    @GetMapping("/logs/history")
+    public List<Map<String, Object>> getLogHistory(@RequestParam(defaultValue = "1h") String range) {
+        return timeSeriesService.readLogHistory(range);
+    }
 
     @GetMapping("/health")
     public Map<String, String> healthCheck() {
