@@ -149,3 +149,46 @@
     *   Zaimplementowano komponenty `MainLayout` i `Sidebar`, tworząc stałą ramę nawigacyjną dla całej aplikacji.
 *   **Zoptymalizowano przepływ danych w widokach:**
     *   Zmodyfikowano widok `AutomationView` (dawniej `RulesManager`), eliminując zależność od danych przekazywanych przez komponent nadrzędny (`props`). Widok został podpięty bezpośrednio do globalnego stanu `Zustand`, co rozwiązało krytyczny błąd (`undefined devices`) występujący przy bezpośrednim wejściu na podstronę automatyzacji.
+        **2025-11-20:**
+---
+**2025-11-20:**
+*   **Uruchomiono aplikację w środowisku produkcyjnym i dopracowano jej wygląd:**
+    *   **Wdrożenie:** Zastosowano **API Gateway (Nginx)**, dzięki czemu cała aplikacja (frontend i backend) jest dostępna pod jednym adresem. Całość została zamknięta w kontenerach `Docker Compose`, tworząc gotowe do uruchomienia środowisko.
+    *   **Dostęp Publiczny:** Użyto `Cloudflare Tunnel` do wystawienia lokalnie działającej aplikacji do publicznego internetu, co omija blokady sieciowe np. w akademiku.
+*   **Wprowadzono duże zmiany w interfejsie użytkownika (UI/UX):**
+    *   **Wygląd:** Dodano przełącznik motywów **Dark/Light Mode**, zarządzany przez globalny stan w `Zustand`.
+    *   **Responsywność:** Przebudowano layout, wprowadzając wysuwane menu boczne (Drawer), dzięki czemu aplikacja dobrze wygląda i działa na telefonach.
+    *   **Feedback:** Wdrożono globalne powiadomienia ("snackbar"), które informują użytkownika o wyniku jego akcji (np. "Urządzenie dodane pomyślnie").
+*   **Przeprowadzono refaktoryzację i poprawiono jakość kodu:**
+    *   **Backend:** We wszystkich serwisach i kontrolerach zmieniono sposób wstrzykiwania zależności z pól (`@Autowired`) na zalecane **wstrzykiwanie przez konstruktor**.
+    *   **Frontend:** Zaktualizowano przestarzałą składnię komponentów `Grid` (Material-UI) i naprawiono inne ostrzeżenia zgłaszane przez IDE.
+---
+**2025-11-28:**
+
+*   **Zaimplementowano reguły oparte na agregacjach czasowych:**
+    *   **Backend:** Rozszerzono `SimulationEngine` o zdolność do ewaluacji warunków opartych na danych historycznych. Wykorzystano do tego dedykowaną metodę w `TimeSeriesService`, która wykonuje zapytania agregujące (np. `mean`, `max`) w języku Flux do bazy InfluxDB.
+    *   **Frontend:** Zaktualizowano interfejs `AddRuleForm`, dodając opcję konfiguracji warunków opartych na oknie czasowym.
+*   **Wdrożono strumieniową przeglądarkę logów systemowych z persystencją:**
+    *   **Backend:** Skonfigurowano niestandardowy appender Logbacka (`MultiTargetLogAppender`), który kieruje logi aplikacji do dwóch celów jednocześnie: strumieniuje je przez WebSocket na dedykowany temat oraz zapisuje w InfluxDB jako dane szeregów czasowych.
+    *   **Frontend:** Stworzono nową podstronę `/logs`, która subskrybuje temat WebSocket i wyświetla logi w czasie rzeczywistym. W celu zapewnienia wysokiej wydajności, zaimplementowano wirtualizację listy (`react-virtuoso`). Interfejs wzbogacono o funkcje filtrowania oraz mechanizm zastępowania identyfikatorów UUID urządzeń ich czytelnymi nazwami.
+*   **Sfinalizowano moduł wizualizacji danych historycznych:**
+    *   **Frontend:** Dodano do widoku wykresu interfejs pozwalający na dynamiczną zmianę zakresu czasowego (`1m`, `15m`, `1h` itd.).
+    *   **Frontend:** Rozwiązano problem nieprawidłowego skalowania osi czasu poprzez implementację dynamicznie aktualizowanej domeny, co zapewnia, że wykres zawsze odzwierciedla wybrany przez użytkownika zakres.
+    *   **Frontend:** Wprowadzono alternatywny widok tabelaryczny, umożliwiający analizę surowych danych, w tym wartości nienumerycznych.
+*   **Zrefaktoryzowano mechanizm zarządzania połączeniem WebSocket:**
+    *   **Frontend:** Zastąpiono pierwotną implementację (hook `useWebSocket`) architekturą opartą na **React Context (`WebSocketProvider`)**. Rozwiązanie to zarządza jedną, globalną instancją klienta STOMP, zapewniając stabilną i niezawodną obsługę wielu subskrypcji z różnych komponentów aplikacji.
+
+---
+**2025-11-30 (Optymalizacje i Bugfixy):**
+
+*   **Optymalizacja Wydajności Logów:**
+    *   Próby rozwiązanie problemu "skaczącego scrolla" i zacinania interfejsu przy dużej ilości logów.
+    *   Wdrożenie buforowania (**Batching**) i synchronizacji z odświeżaniem ekranu (**requestAnimationFrame**) w hooku `useLogStream`.
+    *   Zastosowanie stabilnych kluczy (Stable IDs) dla elementów listy wirtualnej.
+*   **Naprawa Błędów Renderowania:**
+    *   Wyeliminowanie nieskończonej pętli renderowania (`Maximum update depth exceeded`) w komponencie wykresu poprzez zastosowanie selektora `useShallow` w Zustand.
+    *   Naprawa błędów typowania TypeScript w konfiguracji `Recharts`.
+    *   Eliminacja błędu `Zero-sized element` w wirtualizacji poprzez poprawne filtrowanie pustych wiadomości logów.
+*   **Optymalizacja Ładowania Danych:**
+    *   Ograniczenie początkowego zapytania o historię logów do 1000 wpisów.
+    *   Włączenie kompresji **GZIP** w kontenerze Nginx. (redukcja payloadu JSON z 10MB do <1MB)

@@ -15,7 +15,7 @@ export const lightTheme = createTheme({
         },
     },
     shape: {
-        borderRadius: 8,
+        borderRadius: 3,
     },
 });
 
@@ -34,6 +34,6 @@ export const darkTheme = createTheme({
         },
     },
     shape: {
-        borderRadius: 12,
+        borderRadius: 3,
     },
 });

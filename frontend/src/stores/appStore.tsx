@@ -1,8 +1,8 @@
 import { create } from 'zustand';
-import type { Device } from '../types';
+import type {Device, InfluxSensorRecord} from '../types';
 
-const API_URL = window.location.origin;
-const MAX_CHART_POINTS = 100;
+const API_URL = '';
+const MAX_CHART_POINTS = 200;
 
 export interface ChartDataPoint {
     time: number;
@@ -18,7 +18,7 @@ interface SnackbarState {
 }
 
 
-interface AppState {
+export interface AppState {
     //urządzenia
     devices: Device[];
     fetchDevices: () => Promise<void>;
@@ -83,16 +83,24 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ isChartLoading: true, chartData: [], selectedRange: range });
         try {
             const response = await fetch(`${API_URL}/api/devices/${deviceId}/history?range=${range}`);
-            const historyData = await response.json();
-            const formattedData = historyData.map((item: any) => {
+            if (!response.ok) throw new Error('Network response was not ok');
+
+            const historyData = await response.json() as InfluxSensorRecord[];
+
+            const formattedData = historyData.map((item) => {
                 const point: ChartDataPoint = { time: new Date(item._time).getTime() };
+
                 Object.keys(item).forEach(key => {
                     if (!key.startsWith('_') && key !== 'result' && key !== 'table' && key !== 'deviceId') {
-                        point[key] = item[key];
+                        const val = item[key];
+                        if (typeof val === 'number' || typeof val === 'string') {
+                            point[key] = val;
+                        }
                     }
                 });
                 return point;
-            }).sort((a: ChartDataPoint, b: ChartDataPoint) => a.time - b.time);
+            }).sort((a, b) => a.time - b.time);
+
             set({ chartData: formattedData, isChartLoading: false });
         } catch (error) {
             console.error("Failed to fetch history:", error);
@@ -101,7 +109,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     },
 
     appendChartData: (device) => {
-        if (device.ioType !== 'SENSOR' || device.id !== get().activeChartDeviceId) {
+        if (device.role !== 'SENSOR' || device.id !== get().activeChartDeviceId) {
             return;
         }
         try {

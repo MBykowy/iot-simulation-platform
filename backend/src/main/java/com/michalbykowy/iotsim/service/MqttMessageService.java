@@ -29,8 +29,3 @@ public class MqttMessageService {
         }
     }
 }
-//Kwantowy
-//Ultra
-//Realistyczny
-//Wielowątkowy
-//Akcelerator

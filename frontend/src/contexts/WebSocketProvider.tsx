@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Client, type IFrame, type IMessage } from '@stomp/stompjs';
+import { Client , type IMessage } from '@stomp/stompjs';
 
 const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 
@@ -14,21 +14,31 @@ const WebSocketContext = createContext<WebSocketContextType | null>(null);
 
 export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const clientRef = useRef<Client | null>(null);
-    const [isConnected, setIsConnected] = useState(false);
+    const [isConnected, setIsConnected] = useState(false); // Stan
     const pendingSubscriptionsRef = useRef<Array<() => void>>([]);
 
     if (!clientRef.current) {
         clientRef.current = new Client({
             brokerURL: WS_URL,
             reconnectDelay: 5000,
-            onConnect: (frame: IFrame) => {
-                console.log('>>> Global WebSocket Client Connected!', frame);
+
+            heartbeatIncoming: 4000,
+            heartbeatOutgoing: 4000,
+
+            onConnect: () => {
+                console.log('>>> Global WebSocket Client Connected');
                 setIsConnected(true);
                 pendingSubscriptionsRef.current.forEach(subscribeFunc => subscribeFunc());
                 pendingSubscriptionsRef.current = [];
             },
-            onDisconnect: () => setIsConnected(false),
-            onStompError: () => setIsConnected(false),
+            onWebSocketClose: () => {
+                console.log('>>> WebSocket Closed');
+                setIsConnected(false);
+            },
+            onStompError: (frame) => {
+                console.error('>>> Broker reported error: ' + frame.headers['message']);
+                setIsConnected(false);
+            },
         });
     }
 

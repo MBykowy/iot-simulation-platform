@@ -88,14 +88,14 @@ public class DataGeneratorService {
         double value;
         Map<String, Object> params = config.parameters();
 
-        switch (config.pattern().toUpperCase()) {
-            case "SINE":
+        switch (config.pattern()) {
+            case SINE:
                 double amplitude = ((Number) params.get("amplitude")).doubleValue();
                 double period = ((Number) params.get("period")).doubleValue();
                 double offset = ((Number) params.get("offset")).doubleValue();
                 value = Math.sin(System.currentTimeMillis() / (period * 1000.0) * 2 * Math.PI) * amplitude + offset;
                 break;
-            case "RANDOM":
+            case RANDOM:
                 double min = ((Number) params.get("min")).doubleValue();
                 double max = ((Number) params.get("max")).doubleValue();
                 value = min + (max - min) * random.nextDouble();

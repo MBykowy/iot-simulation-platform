@@ -55,7 +55,7 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onDelete }
             <CardContent sx={{ flexGrow: 1 }}>
                 <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
                     <Stack direction="row" alignItems="center" spacing={1.5}>
-                        {device.ioType === 'SENSOR' ? <SensorsIcon color="primary" /> : <LightbulbIcon color="secondary" />}
+                        {device.role === 'SENSOR' ? <SensorsIcon color="primary" /> : <LightbulbIcon color="secondary" />}
                         <Typography variant="h6" component="div" noWrap>
                             {device.name}
                         </Typography>
@@ -104,11 +104,10 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onDelete }
                             </IconButton>
                         </Tooltip>
                     )}
-                    {device.ioType === 'SENSOR' && (
-                        <Tooltip title="View History">
-                            <IconButton size="small" onClick={onHistoryClick}><HistoryIcon fontSize="small" /></IconButton>
-                        </Tooltip>
-                    )}
+
+                    <Tooltip title="View History">
+                        <IconButton size="small" onClick={onHistoryClick}><HistoryIcon fontSize="small" /></IconButton>
+                    </Tooltip>
                 </Stack>
             </Box>
         </Card>

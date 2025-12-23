@@ -41,6 +41,7 @@ System opiera się na architekturze **Monolitu Modułowego w Skonteneryzowanym �
 Centralnym punktem wejścia do systemu jest bramka **Nginx (API Gateway)**, która kieruje ruchem do odpowiednich serwisów.
 
 ```mermaid
+
 graph TD
     subgraph "Użytkownik / Świat Zewnętrzny"
         User((Użytkownik))
@@ -50,12 +51,12 @@ graph TD
     subgraph "Infrastruktura Docker"
         Gateway[Nginx API Gateway]
         
-        subgraph "Aplikacja Monolityczna"
-            Backend[Backend Monolith <br> (Spring Boot)]
+        subgraph "Aplikacja"
+            Backend["Backend Monolith <br> (Spring Boot)"]
         end
 
         subgraph "Serwis Prezentacji"
-             Frontend[Frontend SPA <br> (React/Vite)]
+             Frontend["Frontend SPA <br> (React/Vite)"]
         end
         
         subgraph "Serwisy Infrastrukturalne"
@@ -66,7 +67,7 @@ graph TD
     end
 
     User -- HTTP/HTTPS --> Gateway
-    Gateway -- / (root) --> Frontend
+    Gateway -- /(root) --> Frontend
     Gateway -- /api/* --> Backend
     Gateway -- /ws --> Backend
 
@@ -75,6 +76,7 @@ graph TD
 
     Backend -- Zapis/Odczyt --> DB_State
     Backend -- Zapis/Odczyt --> DB_TS
+
 ```
 
 ---
@@ -88,7 +90,7 @@ graph TD
 
 1.  **Sklonuj repozytorium:**
     ```bash
-    git clone https://github.com/twoja-nazwa-uzytkownika/iot-simulation-platform.git
+    git clone https://github.com/MBykowy/iot-simulation-platform.git
     cd iot-simulation-platform
     ```
 

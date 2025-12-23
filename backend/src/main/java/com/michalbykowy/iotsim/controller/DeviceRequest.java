@@ -1,5 +1,7 @@
 package com.michalbykowy.iotsim.controller;
 
-//mapuje JSON: {"name": "Lampa", "type": "VIRTUAL", "ioType": "ACTUATOR"}
-public record DeviceRequest(String name, String type, String ioType) {
+import com.michalbykowy.iotsim.model.DeviceRole;
+import com.michalbykowy.iotsim.model.DeviceType;
+
+public record DeviceRequest(String name, DeviceType type, DeviceRole role) {
 }

@@ -3,3 +3,18 @@ html, body, #root {
     padding: 0;
     height: 100%;
 }
+
+/* FIREFOX + RECHARTS */
+/* Wymusza proste wartości dla tekstu wewnątrz SVG */
+.recharts-text,
+.recharts-cartesian-axis-tick-value,
+.recharts-legend-item-text {
+    font-size: 12px !important;
+    letter-spacing: normal !important;
+    font-feature-settings: normal !important;
+    font-variant: normal !important;
+}
+
+.recharts-surface {
+    overflow: visible;
+}

@@ -1,9 +1,9 @@
 package com.michalbykowy.iotsim.controller;
 
+import com.michalbykowy.iotsim.model.SimulationPattern;
 import java.util.Map;
 
-//representation for single sim field, ex. 'temp'
 public record SimulationFieldConfig(
-        String pattern,
+        SimulationPattern pattern,
         Map<String, Object> parameters) {
 }

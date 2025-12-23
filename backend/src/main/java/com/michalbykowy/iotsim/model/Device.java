@@ -1,17 +1,20 @@
 package com.michalbykowy.iotsim.model;
 
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Column;
+import jakarta.persistence.*;
 
-@Entity // Mówi Springowi, że to jest tabela w bazie danych
+@Entity
 public class Device {
 
-    @Id // Klucz główny
+    @Id
     private String id;
     private String name;
-    private String type;
-    private String ioType;
+
+    @Enumerated(EnumType.STRING)
+    private DeviceType type;
+
+    @Enumerated(EnumType.STRING)
+    private DeviceRole role;
+
     @Column(length = 1024)
     private String currentState;
 
@@ -19,9 +22,15 @@ public class Device {
     private String simulationConfig;
     private boolean simulationActive;
 
-
-
     public Device() {}
+
+    public Device(String id, String name, DeviceType type, DeviceRole role, String currentState) {
+        this.id = id;
+        this.name = name;
+        this.type = type;
+        this.role = role;
+        this.currentState = currentState;
+    }
 
     public String getId() {
         return id;
@@ -39,13 +48,10 @@ public class Device {
         this.name = name;
     }
 
-    public String getType() {
-        return type;
-    }
 
-    public void setType(String type) {
-        this.type = type;
-    }
+    public DeviceType getType() { return type; }
+
+    public void setType(DeviceType type) { this.type = type; }
 
     public String getCurrentState() {
         return currentState;
@@ -55,13 +61,9 @@ public class Device {
         this.currentState = currentState;
     }
 
-    public String getIoType() {
-        return ioType;
-    }
+    public DeviceRole getRole() { return role; }
 
-    public void setIoType(String ioType) {
-        this.ioType = ioType;
-    }
+    public void setRole(DeviceRole role) { this.role = role; }
 
     public String getSimulationConfig() {
         return simulationConfig;
@@ -78,22 +80,4 @@ public class Device {
     public void setSimulationActive(boolean simulationActive) {
         this.simulationActive = simulationActive;
     }
-
-    /**
-             * Konstruktor klasy Device.
-             *
-             * @param id            Unikalny identyfikator urządzenia.
-             * @param name          Nazwa urządzenia.
-             * @param type          Typ urządzenia.
-             * @param ioType        Typ wejścia/wyjścia urządzenia.
-             * @param currentState  Aktualny stan urządzenia.
-             */
-            public Device(String id, String name, String type, String ioType, String currentState) {
-                this.id = id;
-                this.name = name;
-                this.type = type;
-                this.currentState = currentState;
-                this.ioType = ioType;
-            }
-
 }

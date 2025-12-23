@@ -1,1 +1,13 @@
-{}
+{
+  "name": "iot-simulation-platform-root",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "frontend"
+  ],
+  "scripts": {
+    "start:prod": "docker-compose up --build",
+    "start:dev": "docker-compose -f docker-compose.yml -f docker-compose.dev.yml up -d --build iot-backend influxdb mosquitto && npm run dev --workspace=frontend",
+    "stop": "docker-compose down"
+  }
+}

@@ -1,7 +1,8 @@
 import { useState, useMemo, useEffect } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useAppStore } from '../stores/appStore';
+import { useAppStore, type AppState } from '../stores/appStore';
 import { Box, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
+import { useShallow } from 'zustand/react/shallow';
 
 const parseRangeToMs = (range: string): number => {
     const value = parseInt(range.slice(0, -1));
@@ -14,24 +15,31 @@ const parseRangeToMs = (range: string): number => {
     }
 };
 
-export function RealTimeChart() {
-    const { chartData, selectedRange } = useAppStore(state => ({
-        chartData: state.chartData,
-        selectedRange: state.selectedRange,
-    }));
 
-    const [timeDomain, setTimeDomain] = useState<[number | 'auto', number | 'auto']>(['auto', 'auto']);
+type AxisDomain = number | 'auto' | 'dataMin' | 'dataMax';
+
+export function RealTimeChart() {
+    const { chartData, selectedRange } = useAppStore(
+        useShallow((state: AppState) => ({
+            chartData: state.chartData,
+            selectedRange: state.selectedRange,
+        }))
+    );
+
+    const [timeDomain, setTimeDomain] = useState<[AxisDomain, AxisDomain]>(['auto', 'auto']);
 
     useEffect(() => {
+        const rangeMs = parseRangeToMs(selectedRange);
+
         const updateDomain = () => {
             const now = Date.now();
-            const rangeMs = parseRangeToMs(selectedRange);
             setTimeDomain([now - rangeMs, now]);
         };
 
         updateDomain();
         const intervalId = setInterval(updateDomain, 1000);
         return () => clearInterval(intervalId);
+
     }, [selectedRange]);
 
     const allKeys = useMemo(() => {
@@ -64,7 +72,6 @@ export function RealTimeChart() {
 
     const timeFormatter = (timestamp: number) => new Date(timestamp).toLocaleTimeString('en-GB');
 
-
     return (
         <Box>
             <FormGroup row sx={{ mb: 2, justifyContent: 'center' }}>
@@ -78,7 +85,7 @@ export function RealTimeChart() {
             </FormGroup>
 
             <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={chartData}>
+                <LineChart data={chartData} syncId="anyId">
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.2)" />
                     <XAxis
                         dataKey="time"

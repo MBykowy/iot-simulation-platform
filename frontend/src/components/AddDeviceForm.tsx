@@ -1,18 +1,23 @@
 import React, { useState } from 'react';
 import { Box, Button, TextField, Select, MenuItem, FormControl, InputLabel, Typography } from '@mui/material';
-import {useAppStore} from "../stores/appStore.tsx";
+import { useAppStore } from '../stores/appStore';
+import type { DeviceRole } from '../types';
 
-const API_URL = '';
+const API_URL = window.location.origin;
 
 export function AddDeviceForm() {
     const showSnackbar = useAppStore((state) => state.showSnackbar);
     const [name, setName] = useState('');
-    const [ioType, setIoType] = useState('SENSOR');
+    const [role, setRole] = useState<DeviceRole>('SENSOR');
 
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
 
-        const newDevice = { name, type: 'VIRTUAL', ioType };
+        const newDevice = {
+            name,
+            type: 'VIRTUAL',
+            role
+        };
 
         fetch(`${API_URL}/api/devices`, {
             method: 'POST',
@@ -22,22 +27,17 @@ export function AddDeviceForm() {
             .then(response => {
                 if (!response.ok) { throw new Error('Failed to create device'); }
                 setName('');
-                setIoType('SENSOR');
+                setRole('SENSOR');
                 showSnackbar('Virtual device created successfully!', 'success');
             })
             .catch(error => {
-                console.error('Error creating device:', error)
+                console.error('Error creating device:', error);
                 showSnackbar('Error creating device.', 'error');
             });
-
     };
 
     return (
-        <Box
-            component="form"
-            onSubmit={handleSubmit}
-            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }} // Używamy 'gap' do odstępów
-        >
+        <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Typography variant="h6">Add Virtual Device</Typography>
             <TextField
                 label="Device Name"
@@ -48,12 +48,12 @@ export function AddDeviceForm() {
                 fullWidth
             />
             <FormControl fullWidth>
-                <InputLabel id="io-type-select-label">I/O Type</InputLabel>
+                <InputLabel id="role-select-label">Device Role</InputLabel>
                 <Select
-                    labelId="io-type-select-label"
-                    value={ioType}
-                    label="I/O Type"
-                    onChange={(e) => setIoType(e.target.value)}
+                    labelId="role-select-label"
+                    value={role}
+                    label="Device Role"
+                    onChange={(e) => setRole(e.target.value as DeviceRole)}
                 >
                     <MenuItem value="SENSOR">Sensor</MenuItem>
                     <MenuItem value="ACTUATOR">Actuator</MenuItem>

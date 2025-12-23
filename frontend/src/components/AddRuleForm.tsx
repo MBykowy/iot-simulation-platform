@@ -84,7 +84,7 @@ export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
                         <FormControl fullWidth sx={{ mb: 2 }}>
                             <InputLabel>Trigger Device</InputLabel>
                             <Select value={triggerDeviceId} label="Trigger Device" onChange={e => setTriggerDeviceId(e.target.value)} required>
-                                {devices.filter(d => d.ioType === 'SENSOR').map(d => <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>)}
+                                {devices.filter(d => d.role === 'SENSOR').map(d => <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>)}
                             </Select>
                         </FormControl>
 

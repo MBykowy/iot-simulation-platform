@@ -126,6 +126,8 @@ public class TimeSeriesService {
                         "  |> range(start: -%s)\n" +
                         "  |> filter(fn: (r) => r._measurement == \"system_logs\")\n" +
                         "  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n" +
+                        "  |> sort(columns: [\"_time\"], desc: true)\n" +
+                        "  |> limit(n: 1000)\n" +
                         "  |> sort(columns: [\"_time\"], desc: false)",
                 bucket, range);
         return executeFluxQuery(fluxQuery);

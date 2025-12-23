@@ -3,8 +3,7 @@ package com.michalbykowy.iotsim.service;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
-import com.michalbykowy.iotsim.model.Device;
-import com.michalbykowy.iotsim.model.Rule;
+import com.michalbykowy.iotsim.model.*;
 import com.michalbykowy.iotsim.repository.DeviceRepository;
 import com.michalbykowy.iotsim.repository.RuleRepository;
 import org.slf4j.Logger;
@@ -58,65 +57,65 @@ public class SimulationEngine {
 
     private boolean checkCondition(Rule rule, Device device) {
         try {
-            Map<String, Object> triggerConfig = objectMapper.readValue(rule.getTriggerConfig(), new TypeReference<>() {});
+            RuleTrigger trigger = objectMapper.readValue(rule.getTriggerConfig(), RuleTrigger.class);
 
-            if (triggerConfig.containsKey("aggregate")) {
-                return checkAggregateCondition(triggerConfig, device);
+            if (trigger.aggregate() != null && !trigger.aggregate().isEmpty()) {
+                return checkAggregateCondition(trigger, device);
             } else {
-                return checkStateCondition(triggerConfig, device);
+                return checkStateCondition(trigger, device);
             }
         } catch (Exception e) {
-            logger.error("SIM ENGINE: Error parsing or checking condition for rule {}: {}", rule.getId(), e.getMessage());
+            logger.error("SIM ENGINE: Error parsing condition for rule {}: {}", rule.getId(), e.getMessage());
             return false;
         }
     }
 
-    private boolean checkStateCondition(Map<String, Object> config, Device device) {
-        String path = (String) config.get("path");
-        Object actualValue = JsonPath.read(device.getCurrentState(), path);
-        return compareValues(actualValue, config);
+
+    private boolean checkStateCondition(RuleTrigger trigger, Device device) {
+        Object actualValue = JsonPath.read(device.getCurrentState(), trigger.path());
+        return compareValues(actualValue, trigger);
     }
 
-    private boolean checkAggregateCondition(Map<String, Object> config, Device device) {
-        String field = (String) config.get("field");
-        String range = (String) config.get("range");
-        String aggregate = (String) config.get("aggregate");
 
-        Optional<Double> aggregateValueOpt = timeSeriesService.queryAggregate(device.getId(), field, range, aggregate);
+    private boolean checkAggregateCondition(RuleTrigger trigger, Device device) {
+        Optional<Double> aggregateValueOpt = timeSeriesService.queryAggregate(
+                device.getId(),
+                trigger.field(),
+                trigger.range(),
+                trigger.aggregate()
+        );
 
-        return aggregateValueOpt.map(val -> compareValues(val, config)).orElse(false);
+        return aggregateValueOpt.map(val -> compareValues(val, trigger)).orElse(false);
     }
 
-    private boolean compareValues(Object actualValue, Map<String, Object> config) {
-        String operator = (String) config.get("operator");
-        Object expectedValue = config.get("value");
+    private boolean compareValues(Object actualValue, RuleTrigger trigger) {
+        RuleOperator operator = trigger.operator();
+        if (operator == null) {
+            logger.error("Operator is null in rule trigger");
+            return false;
+        }
 
-        logger.info("SIM ENGINE: Comparing - Actual: {}, Operator: {}, Expected: {}", actualValue, operator, expectedValue);
+        String expectedValueStr = trigger.value();
 
         try {
             double actual = Double.parseDouble(String.valueOf(actualValue));
-            double expected = Double.parseDouble(String.valueOf(expectedValue));
+            double expected = Double.parseDouble(expectedValueStr);
 
-            return switch (operator.toUpperCase()) {
-                case "EQUALS" -> actual == expected;
-                case "GREATER_THAN" -> actual > expected;
-                case "LESS_THAN" -> actual < expected;
-                default -> {
-                    logger.error("SIM ENGINE: Unknown operator: {}", operator);
-                    yield false;
-                }
-            };
+            logger.debug("SIM ENGINE: Comparing - Actual: {}, Operator: {}, Expected: {}", actual, operator, expected); // Log dla debugowania
+
+            return operator.apply(actual, expected);
         } catch (NumberFormatException e) {
-            return "EQUALS".equalsIgnoreCase(operator) && String.valueOf(actualValue).equals(String.valueOf(expectedValue));
+            //fallback
+            return operator == RuleOperator.EQUALS && String.valueOf(actualValue).equals(expectedValueStr);
         }
     }
 
     private void executeAction(Rule rule, int depth) {
         try {
-            Map<String, Object> actionConfig = objectMapper.readValue(rule.getActionConfig(), new TypeReference<>() {});
-            String targetDeviceId = (String) actionConfig.get("deviceId");
-            Object newStateObj = actionConfig.get("newState");
-            String newStateJson = objectMapper.writeValueAsString(newStateObj);
+            RuleAction action = objectMapper.readValue(rule.getActionConfig(), RuleAction.class);
+
+            String targetDeviceId = action.deviceId();
+            String newStateJson = objectMapper.writeValueAsString(action.newState());
 
             deviceRepository.findById(targetDeviceId).ifPresent(targetDevice -> {
                 logger.info("SIM ENGINE: Updating device {} with new state: {}", targetDeviceId, newStateJson);

@@ -25,7 +25,12 @@ public class RuleService {
     public List<Rule> getAllRules() {
         return ruleRepository.findAll();
     }
-    public Rule createRule (RuleRequest ruleRequest) throws JsonProcessingException {
+
+    public Rule createRule(RuleRequest ruleRequest) throws JsonProcessingException {
+        if (ruleRequest.triggerConfig().deviceId() == null) {
+            throw new IllegalArgumentException("Trigger deviceId cannot be null");
+        }
+
         Rule newRule = new Rule(
                 UUID.randomUUID().toString(),
                 ruleRequest.name(),
@@ -35,7 +40,6 @@ public class RuleService {
         return ruleRepository.save(newRule);
     }
 
-    // w RuleService.java
     public void deleteRule(String ruleId) {
         if (ruleRepository.existsById(ruleId)) {
             ruleRepository.deleteById(ruleId);

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Device } from '../types';
+import type {Device, SimulationConfig, SimulationFieldConfig, SimulationPattern} from '../types';
 import { Modal, Box, Typography, Button, Select, MenuItem, TextField, FormControl, InputLabel, Grid, Paper, IconButton } from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -21,7 +21,7 @@ const style = {
 interface SimulationField {
     id: number;
     name: string;
-    pattern: 'SINE' | 'RANDOM';
+    pattern: SimulationPattern;
     parameters: Record<string, number>;
 }
 
@@ -38,11 +38,11 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
     useEffect(() => {
         if (device?.simulationConfig) {
             try {
-                const config = JSON.parse(device.simulationConfig);
+                const config = JSON.parse(device.simulationConfig) as SimulationConfig;
                 setIntervalMs(config.intervalMs || 2000);
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const loadedFields = Object.entries(config.fields).map(([name, fieldConfig]: [string, any], index) => ({
-                    id: index,
+
+                const loadedFields = Object.entries(config.fields).map(([name, fieldConfig], index) => ({
+                    id: index, // tymczasowo index jako id dla ui
                     name,
                     pattern: fieldConfig.pattern,
                     parameters: fieldConfig.parameters,
@@ -50,6 +50,7 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
                 setFields(loadedFields);
             } catch (e) { console.error("Failed to parse simulation config", e); }
         } else {
+            // Default
             setFields([{ id: 0, name: 'temperature', pattern: 'SINE', parameters: { amplitude: 5, period: 30, offset: 20 } }]);
             setIntervalMs(2000);
         }
@@ -69,15 +70,18 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
 
     const handleStart = () => {
         if (!device) return;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
         const fieldsAsMap = fields.reduce((acc, field) => {
             if (field.name) {
-                acc[field.name] = { pattern: field.pattern, parameters: field.parameters };
+                acc[field.name] = {
+                    pattern: field.pattern,
+                    parameters: field.parameters
+                };
             }
             return acc;
-        }, {} as Record<string, any>);
+        }, {} as Record<string, SimulationFieldConfig>);
 
-        const body = { intervalMs, fields: fieldsAsMap };
+        const body: SimulationConfig = { intervalMs, fields: fieldsAsMap };
 
         fetch(`${API_URL}/api/devices/${device.id}/simulation`, {
             method: 'POST',
@@ -129,7 +133,7 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
                             <Grid size={{ xs: 12, sm: 4 }}>
                                 <FormControl fullWidth size="small">
                                     <InputLabel>Pattern</InputLabel>
-                                    <Select value={field.pattern} label="Pattern" onChange={e => updateField(field.id, 'pattern', e.target.value as any)}>
+                                    <Select value={field.pattern} label="Pattern" onChange={e => updateField(field.id, 'pattern', e.target.value as SimulationPattern)}>
                                         <MenuItem value="SINE">Sine Wave</MenuItem>
                                         <MenuItem value="RANDOM">Random</MenuItem>
                                     </Select>

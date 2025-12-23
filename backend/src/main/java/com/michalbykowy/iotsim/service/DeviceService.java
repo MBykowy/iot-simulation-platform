@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.michalbykowy.iotsim.controller.DeviceRequest;
 import com.michalbykowy.iotsim.controller.SimulationRequest;
 import com.michalbykowy.iotsim.model.Device;
+import com.michalbykowy.iotsim.model.DeviceRole;
+import com.michalbykowy.iotsim.model.DeviceType;
 import com.michalbykowy.iotsim.repository.DeviceRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -15,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class DeviceService {
@@ -25,6 +28,8 @@ public class DeviceService {
     private final SimulationEngine simulationEngine;
     private final ObjectMapper objectMapper;
     private final TimeSeriesService timeSeriesService;
+    private final ConcurrentHashMap<String, Long> lastUpdateSent = new ConcurrentHashMap<>();
+    private static final long UPDATE_THRESHOLD_MS = 500;
 
     public DeviceService(DeviceRepository deviceRepository, SimpMessagingTemplate messagingTemplate, SimulationEngine simulationEngine, ObjectMapper objectMapper, TimeSeriesService timeSeriesService) {
         this.deviceRepository = deviceRepository;
@@ -44,7 +49,7 @@ public class DeviceService {
                 UUID.randomUUID().toString(),
                 deviceRequest.name(),
                 deviceRequest.type(),
-                deviceRequest.ioType(),
+                deviceRequest.role(),
                 "{}"
         );
         Device savedDevice = deviceRepository.save(newDevice);
@@ -55,7 +60,7 @@ public class DeviceService {
     @Transactional
     public Device updateDeviceName(String deviceId, String newName) {
         Device device = deviceRepository.findById(deviceId)
-                .orElseThrow(() -> new RuntimeException("Device not found: " + deviceId)); // Lepsza obsługa błędów
+                .orElseThrow(() -> new RuntimeException("Device not found: " + deviceId));
 
         device.setName(newName);
         Device savedDevice = deviceRepository.save(device);
@@ -130,19 +135,30 @@ public class DeviceService {
                 .orElseGet(() -> {
                     String deviceName = finalRootNode.path("name").asText("Physical Device #" + deviceId.substring(0, 6));
                     System.out.println("DEVICE_SERVICE: Device " + deviceId + " not found. Creatling new with name: " + deviceName);
-                    return new Device(deviceId, deviceName, "PHYSICAL", "SENSOR", "{}");
+                    return new Device(deviceId, deviceName, DeviceType.PHYSICAL, DeviceRole.SENSOR, "{}");
                 });
 
 
         device.setCurrentState(finalState);
         Device savedDevice = deviceRepository.save(device);
 
+        // Optymalizacja frontend
+        long now = System.currentTimeMillis();
+        long last = lastUpdateSent.getOrDefault(deviceId, Long.valueOf(0L));
+
         messagingTemplate.convertAndSend("/topic/devices", savedDevice);
+        if (now - last > UPDATE_THRESHOLD_MS) {
+            messagingTemplate.convertAndSend("/topic/devices", savedDevice);
+            lastUpdateSent.put(deviceId, Long.valueOf(now));
+        }
+
+
+
+
         simulationEngine.processEvent(savedDevice);
 
-        if ("SENSOR".equalsIgnoreCase(device.getIoType())) {
-            timeSeriesService.writeSensorData(deviceId, fullPayloadForInflux);
-        }
+        timeSeriesService.writeSensorData(deviceId, fullPayloadForInflux);
+
 
         return savedDevice;
     }
