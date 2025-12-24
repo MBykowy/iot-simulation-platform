@@ -1,8 +1,20 @@
-import React, { useState } from 'react';
 import type {Device} from '../types';
-import { Box, Button, TextField, Select, MenuItem, FormControl, InputLabel, Typography, Grid, Paper, FormControlLabel, Switch } from '@mui/material';
-
-const API_URL = import.meta.env.VITE_API_URL || window.location.origin;
+import {
+    Box,
+    Button,
+    CircularProgress,
+    FormControl,
+    FormControlLabel,
+    Grid,
+    InputLabel,
+    MenuItem,
+    Paper,
+    Select,
+    Switch,
+    TextField,
+    Typography
+} from '@mui/material';
+import {useRuleForm} from '../hooks/useRuleForm';
 
 interface AddRuleFormProps {
     devices: Device[];
@@ -10,110 +22,54 @@ interface AddRuleFormProps {
 }
 
 export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
-    const [ruleName, setRuleName] = useState('');
-
-    const [isTimeBased, setIsTimeBased] = useState(false);
-
-    const [triggerDeviceId, setTriggerDeviceId] = useState('');
-    const [triggerPath, setTriggerPath] = useState('$.temperature');
-    const [triggerField, setTriggerField] = useState('temperature');
-    const [triggerRange, setTriggerRange] = useState('5m');
-    const [triggerAggregate, setTriggerAggregate] = useState('mean');
-
-    const [triggerOperator, setTriggerOperator] = useState('GREATER_THAN');
-    const [triggerValue, setTriggerValue] = useState('25');
-
-    const [actionDeviceId, setActionDeviceId] = useState('');
-    const [actionNewState, setActionNewState] = useState('{"status": "ON"}');
-
-    const handleSubmit = (event: React.FormEvent) => {
-        event.preventDefault();
-
-        let triggerConfig;
-        if (isTimeBased) {
-            triggerConfig = {
-                deviceId: triggerDeviceId,
-                aggregate: triggerAggregate,
-                field: triggerField,
-                range: triggerRange,
-                operator: triggerOperator,
-                value: triggerValue,
-            };
-        } else {
-            triggerConfig = {
-                deviceId: triggerDeviceId,
-                path: triggerPath,
-                operator: triggerOperator,
-                value: triggerValue,
-            };
-        }
-
-        let newStateParsed;
-        try {
-            newStateParsed = JSON.parse(actionNewState);
-        } catch {
-            alert('Invalid JSON in Action New State');
-            return;
-        }
-
-        const actionConfig = { deviceId: actionDeviceId, newState: newStateParsed };
-        const newRule = { name: ruleName, triggerConfig, actionConfig };
-
-        fetch(`${API_URL}/api/rules`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newRule),
-        })
-            .then(response => { if (!response.ok) throw new Error('Failed to create rule'); onRuleAdded(); setRuleName(''); })
-            .catch(error => console.error('Error creating rule:', error));
-    };
+    const { formData, isSubmitting, isFormValid, updateField, handleSubmit } = useRuleForm(onRuleAdded);
 
     return (
         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 2 }}>
             <Typography variant="h6" gutterBottom>Create New Rule</Typography>
             <Grid container spacing={2}>
                 <Grid size={{ xs: 12 }}>
-                    <TextField fullWidth label="Rule Name" value={ruleName} onChange={e => setRuleName(e.target.value)} required />
+                    <TextField fullWidth label="Rule Name" value={formData.name} onChange={e => updateField('name', e.target.value)} required disabled={isSubmitting} />
                 </Grid>
 
                 <Grid size={{ xs: 12, md: 6 }}>
                     <Paper elevation={3} sx={{ p: 2, height: '100%' }}>
                         <Typography variant="subtitle1" gutterBottom>IF (Trigger)</Typography>
-                        <FormControlLabel control={<Switch checked={isTimeBased} onChange={e => setIsTimeBased(e.target.checked)} />} label="Time-based Condition" sx={{ mb: 2 }}/>
+                        <FormControlLabel control={<Switch checked={formData.isTimeBased} onChange={e => updateField('isTimeBased', e.target.checked)} />} label="Time-based Condition" sx={{ mb: 2 }} disabled={isSubmitting} />
 
                         <FormControl fullWidth sx={{ mb: 2 }}>
                             <InputLabel>Trigger Device</InputLabel>
-                            <Select value={triggerDeviceId} label="Trigger Device" onChange={e => setTriggerDeviceId(e.target.value)} required>
+                            <Select value={formData.triggerDeviceId} label="Trigger Device" onChange={e => updateField('triggerDeviceId', e.target.value)} required disabled={isSubmitting}>
                                 {devices.filter(d => d.role === 'SENSOR').map(d => <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>)}
                             </Select>
                         </FormControl>
 
-                        {isTimeBased ? (
+                        {formData.isTimeBased ? (
                             <>
                                 <FormControl fullWidth sx={{ mb: 2 }}>
                                     <InputLabel>Aggregate</InputLabel>
-                                    <Select value={triggerAggregate} label="Aggregate" onChange={e => setTriggerAggregate(e.target.value)}>
+                                    <Select value={formData.triggerAggregate} label="Aggregate" onChange={e => updateField('triggerAggregate', e.target.value as typeof formData.triggerAggregate)} disabled={isSubmitting}>
                                         <MenuItem value="mean">Mean (Average)</MenuItem>
                                         <MenuItem value="max">Maximum</MenuItem>
                                         <MenuItem value="min">Minimum</MenuItem>
                                     </Select>
                                 </FormControl>
-                                <TextField fullWidth sx={{ mb: 2 }} label="Field (e.g., temperature)" value={triggerField} onChange={e => setTriggerField(e.target.value)} />
-                                <TextField fullWidth sx={{ mb: 2 }} label="Time Range (e.g., 5m, 1h)" value={triggerRange} onChange={e => setTriggerRange(e.target.value)} />
+                                <TextField fullWidth sx={{ mb: 2 }} label="Field (e.g., temperature)" value={formData.triggerField} onChange={e => updateField('triggerField', e.target.value)} disabled={isSubmitting} />
+                                <TextField fullWidth sx={{ mb: 2 }} label="Time Range (e.g., 5m, 1h)" value={formData.triggerRange} onChange={e => updateField('triggerRange', e.target.value)} disabled={isSubmitting} />
                             </>
                         ) : (
-                            <TextField fullWidth sx={{ mb: 2 }} label="JSON Path (e.g., $.temperature)" value={triggerPath} onChange={e => setTriggerPath(e.target.value)} />
+                            <TextField fullWidth sx={{ mb: 2 }} label="JSON Path (e.g., $.temperature)" value={formData.triggerPath} onChange={e => updateField('triggerPath', e.target.value)} disabled={isSubmitting} />
                         )}
 
                         <FormControl fullWidth sx={{ mb: 2 }}>
                             <InputLabel>Operator</InputLabel>
-                            <Select value={triggerOperator} label="Operator" onChange={e => setTriggerOperator(e.target.value)}>
+                            <Select value={formData.triggerOperator} label="Operator" onChange={e => updateField('triggerOperator', e.target.value as typeof formData.triggerOperator)} disabled={isSubmitting}>
                                 <MenuItem value="EQUALS">EQUALS</MenuItem>
                                 <MenuItem value="GREATER_THAN">GREATER_THAN</MenuItem>
                                 <MenuItem value="LESS_THAN">LESS_THAN</MenuItem>
                             </Select>
                         </FormControl>
-                        <TextField fullWidth label="Value" value={triggerValue} onChange={e => setTriggerValue(e.target.value)} required />
+                        <TextField fullWidth label="Value" value={formData.triggerValue} onChange={e => updateField('triggerValue', e.target.value)} required disabled={isSubmitting} />
                     </Paper>
                 </Grid>
 
@@ -122,16 +78,18 @@ export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
                         <Typography variant="subtitle1" gutterBottom>THEN (Action)</Typography>
                         <FormControl fullWidth sx={{ mb: 2 }}>
                             <InputLabel>Action Device</InputLabel>
-                            <Select value={actionDeviceId} label="Action Device" onChange={e => setActionDeviceId(e.target.value)} required>
+                            <Select value={formData.actionDeviceId} label="Action Device" onChange={e => updateField('actionDeviceId', e.target.value)} required disabled={isSubmitting}>
                                 {devices.map(d => <MenuItem key={d.id} value={d.id}>{d.name}</MenuItem>)}
                             </Select>
                         </FormControl>
-                        <TextField fullWidth multiline rows={4} label="New State (JSON)" value={actionNewState} onChange={e => setActionNewState(e.target.value)} />
+                        <TextField fullWidth multiline rows={4} label="New State (JSON)" value={formData.actionNewState} onChange={e => updateField('actionNewState', e.target.value)} disabled={isSubmitting} />
                     </Paper>
                 </Grid>
 
                 <Grid size={{ xs: 12 }}>
-                    <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }}>Create Rule</Button>
+                    <Button type="submit" variant="contained" color="primary" fullWidth sx={{ mt: 2 }} disabled={isSubmitting || !isFormValid}>
+                        {isSubmitting ? <CircularProgress size={24} /> : 'Create Rule'}
+                    </Button>
                 </Grid>
             </Grid>
         </Box>

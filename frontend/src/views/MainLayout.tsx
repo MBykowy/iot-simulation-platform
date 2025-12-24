@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { Outlet } from 'react-router-dom';
-import { Box, Toolbar, AppBar, Typography, IconButton, useTheme, useMediaQuery, Drawer } from '@mui/material';
-import { Sidebar } from '../components/Sidebar';
-import { DeveloperBoard, Menu as MenuIcon, Brightness4, Brightness7 } from "@mui/icons-material";
-import { useAppStore } from '../stores/appStore';
+import {useState} from 'react';
+import {Outlet} from 'react-router-dom';
+import {AppBar, Box, Drawer, IconButton, Toolbar, Typography, useMediaQuery, useTheme} from '@mui/material';
+import {Sidebar} from '../components/Sidebar';
+import {Brightness4, Brightness7, DeveloperBoard, Menu as MenuIcon} from "@mui/icons-material";
+import {useAppStore} from '../stores/appStore';
 
 const DRAWER_WIDTH = 240;
 

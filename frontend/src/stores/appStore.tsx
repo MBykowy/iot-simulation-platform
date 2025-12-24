@@ -1,8 +1,7 @@
-import { create } from 'zustand';
-import type {Device, InfluxSensorRecord} from '../types';
+import {create} from 'zustand';
+import type {Device} from '../types';
 
 const API_URL = '';
-const MAX_CHART_POINTS = 200;
 
 export interface ChartDataPoint {
     time: number;
@@ -30,10 +29,13 @@ export interface AppState {
     isChartLoading: boolean;
     activeChartDeviceId: string | null;
     setActiveChartDevice: (deviceId: string | null) => void;
-    loadChartData: (deviceId: string, range: string) => Promise<void>;
     appendChartData: (device: Device) => void;
     clearChartData: () => void;
     selectedRange: string;
+    setChartData: (data: ChartDataPoint[]) => void;
+    liveUpdateCallback: ((device: Device) => void) | null;
+    setLiveUpdateCallback: (callback: ((device: Device) => void) | null) => void;
+
     //motyw
     themeMode: 'light' | 'dark';
     toggleThemeMode: () => void;
@@ -47,6 +49,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     // urządzenia
     devices: [],
     selectedRange: '15m',
+    liveUpdateCallback: null,
+    setLiveUpdateCallback: (callback) => set({ liveUpdateCallback: callback }),
+
+    setChartData: (data) => set({ chartData: data }),
 
     fetchDevices: async () => {
         try {
@@ -79,55 +85,11 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     setActiveChartDevice: (deviceId) => set({ activeChartDeviceId: deviceId }),
 
-    loadChartData: async (deviceId, range) => {
-        set({ isChartLoading: true, chartData: [], selectedRange: range });
-        try {
-            const response = await fetch(`${API_URL}/api/devices/${deviceId}/history?range=${range}`);
-            if (!response.ok) throw new Error('Network response was not ok');
-
-            const historyData = await response.json() as InfluxSensorRecord[];
-
-            const formattedData = historyData.map((item) => {
-                const point: ChartDataPoint = { time: new Date(item._time).getTime() };
-
-                Object.keys(item).forEach(key => {
-                    if (!key.startsWith('_') && key !== 'result' && key !== 'table' && key !== 'deviceId') {
-                        const val = item[key];
-                        if (typeof val === 'number' || typeof val === 'string') {
-                            point[key] = val;
-                        }
-                    }
-                });
-                return point;
-            }).sort((a, b) => a.time - b.time);
-
-            set({ chartData: formattedData, isChartLoading: false });
-        } catch (error) {
-            console.error("Failed to fetch history:", error);
-            set({ isChartLoading: false });
-        }
-    },
-
     appendChartData: (device) => {
-        if (device.role !== 'SENSOR' || device.id !== get().activeChartDeviceId) {
-            return;
+        const callback = get().liveUpdateCallback;
+        if (callback) {
+            callback(device);
         }
-        try {
-            const pointState = JSON.parse(device.currentState);
-            const dataPoint: ChartDataPoint = { time: new Date().getTime() };
-            Object.keys(pointState).forEach(key => {
-                const val = parseFloat(pointState[key]);
-                if (!isNaN(val)) dataPoint[key] = val;
-            });
-
-            if (Object.keys(dataPoint).length > 1) {
-                set(state => {
-                    const newData = [...state.chartData, dataPoint];
-                    if (newData.length > MAX_CHART_POINTS) newData.shift();
-                    return { chartData: newData };
-                });
-            }
-        } catch {}
     },
 
     snackbar: { open: false, message: '', severity: 'info' },

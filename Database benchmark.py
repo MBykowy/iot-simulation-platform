@@ -1,7 +1,7 @@
-import time
-import sqlite3
-import random
 import os
+import random
+import sqlite3
+import time
 from datetime import datetime, timedelta, timezone
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS

@@ -1,5 +1,5 @@
-import { Link as RouterLink } from 'react-router-dom';
-import { Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText } from '@mui/material';
+import {Link as RouterLink} from 'react-router-dom';
+import {Box, List, ListItem, ListItemButton, ListItemIcon, ListItemText} from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import DevicesIcon from '@mui/icons-material/Dns';
 import AutomationIcon from '@mui/icons-material/AccountTree';

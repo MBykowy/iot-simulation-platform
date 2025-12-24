@@ -1,6 +1,7 @@
 package com.michalbykowy.iotsim.api;
 
 import com.michalbykowy.iotsim.model.LogLevel;
+
 import java.time.Instant;
 
 public class LogMessage {

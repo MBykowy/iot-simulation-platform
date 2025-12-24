@@ -52,7 +52,7 @@ public class MultiTargetLogAppender extends AppenderBase<ILoggingEvent> {
                         .time(Instant.ofEpochMilli(event.getTimeStamp()), WritePrecision.MS);
                 writeApi.writePoint(point);
             } catch (Exception e) {
-                //zabezpieczenie przed zapętleniem
+                //zabezpieczenie przed zapętleniem, gdyby logowanie influx generowało bład który będzie się logował
                 System.err.println("ERROR in MultiTargetLogAppender: " + e.getMessage());
             }
         }

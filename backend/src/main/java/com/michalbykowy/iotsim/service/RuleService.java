@@ -2,10 +2,12 @@ package com.michalbykowy.iotsim.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.michalbykowy.iotsim.api.exception.ResourceNotFoundException;
 import com.michalbykowy.iotsim.controller.RuleRequest;
 import com.michalbykowy.iotsim.model.Rule;
 import com.michalbykowy.iotsim.repository.RuleRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -14,6 +16,7 @@ import java.util.UUID;
 @Service
 public class RuleService {
 
+    private static final Logger logger = LoggerFactory.getLogger(RuleService.class);
     private final RuleRepository ruleRepository;
     private final ObjectMapper objectMapper;
 
@@ -41,11 +44,10 @@ public class RuleService {
     }
 
     public void deleteRule(String ruleId) {
-        if (ruleRepository.existsById(ruleId)) {
-            ruleRepository.deleteById(ruleId);
-            System.out.println("RULE SERVICE: Deleted rule with id: " + ruleId);
-        } else {
-            System.err.println("RULE SERVICE: Rule with id " + ruleId + " not found. Nothing to delete.");
+        if (!ruleRepository.existsById(ruleId)) {
+            throw new ResourceNotFoundException("Cannot delete. Rule not found with id: " + ruleId);
         }
+        ruleRepository.deleteById(ruleId);
+        logger.info("Deleted rule with id: {}", ruleId);
     }
 }

@@ -1,6 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
-import type { IMessage } from '@stomp/stompjs';
-import type { LogMessage } from '../types';
+import {useEffect, useRef, useState} from 'react';
+import type {IMessage} from '@stomp/stompjs';
+import type {LogMessage} from '../types';
 
 let logCounter = 0;
 const MAX_LOGS = 1000;
@@ -14,16 +14,19 @@ export function useLogStream(subscriptionManager: any) {
         if (!subscriptionManager) return;
 
         const subscription = subscriptionManager.subscribe('/topic/logs', (message: IMessage) => {
-            const rawLog = JSON.parse(message.body);
-
-            const newLog: LogMessage = {
-                id: logCounter++,
-                timestamp: rawLog.timestamp,
-                level: rawLog.level,
-                loggerName: rawLog.loggerName,
-                message: rawLog.message,
-            };
-            bufferRef.current.push(newLog);
+            try {
+                const rawLog = JSON.parse(message.body);
+                const newLog: LogMessage = {
+                    id: logCounter++,
+                    timestamp: rawLog.timestamp,
+                    level: rawLog.level,
+                    loggerName: rawLog.loggerName,
+                    message: rawLog.message,
+                };
+                bufferRef.current.push(newLog);
+            } catch (error) {
+                console.error("Failed to parse log message from WebSocket", error);
+            }
         });
 
         return () => subscription.unsubscribe();

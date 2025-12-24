@@ -1,19 +1,32 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useWebSocketSubscription } from '../contexts/WebSocketProvider';
-import { Box, Paper, Chip, Switch, FormControlLabel, CircularProgress, Grid, TextField, FormControl, InputLabel, Select, MenuItem, IconButton, Tooltip } from '@mui/material';
-import { LogEntry } from '../components/LogEntry';
-import { Virtuoso, type VirtuosoHandle } from 'react-virtuoso';
-import { useAppStore } from "../stores/appStore.tsx";
-
-import type { Device, InfluxLogRecord, LogLevel, LogMessage } from "../types.ts";
-
+import {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {useWebSocketSubscription} from '../contexts/WebSocketProvider';
+import {
+    Box,
+    Chip,
+    CircularProgress,
+    FormControl,
+    FormControlLabel,
+    Grid,
+    IconButton,
+    InputLabel,
+    MenuItem,
+    Paper,
+    Select,
+    Switch,
+    TextField,
+    Tooltip,
+    Typography
+} from '@mui/material';
+import {LogEntry} from '../components/LogEntry';
+import {Virtuoso, type VirtuosoHandle} from 'react-virtuoso';
+import {useAppStore} from "../stores/appStore.tsx";
+import type {InfluxLogRecord, LogLevel, LogMessage} from "../types.ts";
 import WifiIcon from '@mui/icons-material/Wifi';
 import WifiOffIcon from '@mui/icons-material/WifiOff';
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward';
+import {useLogStream} from '../hooks/useLogStream';
 
-import { useLogStream } from '../hooks/useLogStream';
-
-const API_URL = '';
+const API_URL = import.meta.env.VITE_API_URL || window.location.origin;
 
 const influxToLogMessage = (influxRecord: InfluxLogRecord): Omit<LogMessage, 'id'> => ({
     timestamp: influxRecord._time,
@@ -29,8 +42,6 @@ const levelColors: Record<LogLevel, "primary" | "warning" | "error" | "info" | "
     DEBUG: 'info',
     TRACE: 'default'
 };
-
-
 
 export function LogsView() {
     const devices = useAppStore(state => state.devices);
@@ -53,16 +64,16 @@ export function LogsView() {
 
     const virtuosoRef = useRef<VirtuosoHandle>(null);
 
-    const deviceNameMap = useMemo(() => {
-        return new Map(devices.map(d => [d.id, d.name]));
-    }, [devices]);
-
     useEffect(() => {
-        if (!devices.length) fetchDevices();
-
-        const fetchHistory = async () => {
+        const fetchInitialData = async () => {
             setIsLoading(true);
             try {
+
+                if (!devices.length) {
+                    await fetchDevices();
+                }
+
+
                 const response = await fetch(`${API_URL}/api/logs/history?range=1h`);
                 if (!response.ok) throw new Error('Failed to fetch log history');
 
@@ -70,22 +81,26 @@ export function LogsView() {
 
                 const historicalLogs = data.map((item, index) => ({
                     ...influxToLogMessage(item),
-                    id: index - data.length  //ujemne żeby nie przeszkadzały live
+                    id: index - data.length
                 }));
 
                 setLogs(historicalLogs);
+
+
                 setTimeout(() => {
                     virtuosoRef.current?.scrollToIndex({ index: historicalLogs.length - 1, align: 'end' });
                 }, 100);
 
             } catch (err) {
-                console.error("Failed to fetch log history", err);
+                console.error("Failed to fetch initial data for LogsView:", err);
             } finally {
                 setIsLoading(false);
             }
         };
-        fetchHistory();
-    }, [devices.length, fetchDevices, setLogs]);
+
+        fetchInitialData();
+
+    }, [fetchDevices, setLogs]);
 
 
     const filteredLogs = useMemo(() => {
@@ -101,11 +116,13 @@ export function LogsView() {
 
     const handleScrollToBottom = useCallback(() => {
         setFollow(true);
-        virtuosoRef.current?.scrollToIndex({
-            index: filteredLogs.length - 1,
-            align: 'end',
-            behavior: 'smooth',
-        });
+        if (filteredLogs.length > 0) {
+            virtuosoRef.current?.scrollToIndex({
+                index: filteredLogs.length - 1,
+                align: 'end',
+                behavior: 'smooth',
+            });
+        }
     }, [filteredLogs.length]);
 
     return (
@@ -120,64 +137,65 @@ export function LogsView() {
                             <InputLabel>Filter by Device</InputLabel>
                             <Select value={selectedDeviceId} label="Filter by Device" onChange={e => setSelectedDeviceId(e.target.value)}>
                                 <MenuItem value="">All Devices</MenuItem>
-                                {devices.map((device: Device) => <MenuItem key={device.id} value={device.id}>{device.name}</MenuItem>)}
+                                {devices.map((device) => <MenuItem key={device.id} value={device.id}>{device.name}</MenuItem>)}
                             </Select>
                         </FormControl>
                     </Grid>
                     <Grid size={{ xs: 12, md: 5 }} container alignItems="center" justifyContent="flex-end" spacing={1}>
-                        <Tooltip title={subscriptionManager?.isConnected ? "Connected" : "Disconnected"}>
+                        <Tooltip title={subscriptionManager?.isConnected ? "Connected to WebSocket" : "Disconnected from WebSocket"}>
                             <IconButton color={subscriptionManager?.isConnected ? 'success' : 'error'}>
                                 {subscriptionManager?.isConnected ? <WifiIcon /> : <WifiOffIcon />}
                             </IconButton>
                         </Tooltip>
                         <Tooltip title="Scroll to Bottom">
-                            <IconButton onClick={handleScrollToBottom}>
-                                <ArrowDownwardIcon />
-                            </IconButton>
+                            <span>
+                                <IconButton onClick={handleScrollToBottom} disabled={!filteredLogs.length}>
+                                    <ArrowDownwardIcon />
+                                </IconButton>
+                            </span>
                         </Tooltip>
                         <FormControlLabel
                             control={<Switch checked={follow} onChange={(e) => {
                                 if (e.target.checked) handleScrollToBottom();
                                 else setFollow(false);
                             }} />}
-                            label="Follow logs"
+                            label="Follow"
                         />
                         {(Object.keys(filterLevels) as LogLevel[]).map(level => (
-                            <Chip key={level} label={level}  color={levelColors[level as keyof typeof levelColors]} size="small"
-                                  variant={filterLevels[level as keyof typeof levelColors] ? 'filled' : 'outlined'}
-                                  onClick={() => setFilterLevels(prev => ({...prev, [level]: !prev[level as keyof typeof levelColors]}))}
+                            <Chip key={level} label={level}  color={levelColors[level]} size="small"
+                                  variant={filterLevels[level] ? 'filled' : 'outlined'}
+                                  onClick={() => setFilterLevels(prev => ({...prev, [level]: !prev[level]}))}
                                   sx={{ ml: 1, cursor: 'pointer' }} />
                         ))}
                     </Grid>
                 </Grid>
             </Paper>
 
-            <Paper sx={{ flexGrow: 1, overflow: 'hidden' }}>
+            <Paper sx={{ flexGrow: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 {isLoading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
                         <CircularProgress />
                     </Box>
-                ) : (
+                ) : filteredLogs.length > 0 ? (
                     <Virtuoso
                         ref={virtuosoRef}
                         style={{ height: '100%' }}
                         data={filteredLogs}
                         followOutput={follow ? 'auto' : false}
-                        atBottomStateChange={(isAtBottom) => {
-                            if (!isAtBottom) {
-                                setFollow(false);
-                            } else {
-                                setFollow(true);
-                            }
-                        }}
+                        atBottomStateChange={(isAtBottom) => setFollow(isAtBottom)}
                         atBottomThreshold={50}
-                        alignToBottom={true}
                         itemContent={(_index, log) => (
-                            <Box sx={{ px: 2, py: 0 }} key={log.id}>
-                                <LogEntry log={log} deviceNameMap={deviceNameMap} />
+                            <Box sx={{ px: 2, py: 0.5 }} key={log.id}>
+                                <LogEntry log={log} devices={devices} />
                             </Box>
                         )}
                     />
+                ) : (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
+                        <Typography color="text.secondary">
+                            No logs to display with current filters.
+                        </Typography>
+                    </Box>
                 )}
             </Paper>
         </Box>

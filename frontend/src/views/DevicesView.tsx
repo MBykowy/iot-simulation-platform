@@ -1,20 +1,27 @@
-import { useEffect, useState } from 'react';
-import { useAppStore } from '../stores/appStore';
-import { Grid, Paper, Box, Typography, Fade, Grow, Container } from '@mui/material';
-import { DeviceCard } from '../components/DeviceCard';
-import { DeviceHistoryModal } from '../components/DeviceHistoryModal';
-import { SimulationConfigModal } from '../components/SimulationConfigModal';
-import type { Device } from '../types';
-import { Dns } from "@mui/icons-material";
+import {useEffect, useRef, useState} from 'react';
+import {useAppStore} from '../stores/appStore';
+import {Box, CircularProgress, Container, Fade, Grid, Grow, Paper, Typography} from '@mui/material';
+import {DeviceCard} from '../components/DeviceCard';
+import {DeviceHistoryModal} from '../components/DeviceHistoryModal';
+import {SimulationConfigModal} from '../components/SimulationConfigModal';
+import type {Device} from '../types';
+import {Dns} from "@mui/icons-material";
 
 export function DevicesView() {
+    const [isLoading, setIsLoading] = useState(true);
     const devices = useAppStore((state) => state.devices);
     const fetchDevices = useAppStore((state) => state.fetchDevices);
-    const removeDevice = useAppStore((state) => state.removeDevice);
+    const liveUpdateCallbackRef = useRef<((device: Device) => void) | null>(null);
 
     useEffect(() => {
-        fetchDevices();
+        const loadDevices = async () => {
+            setIsLoading(true);
+            await fetchDevices();
+            setIsLoading(false);
+        };
+        loadDevices();
     }, [fetchDevices]);
+
 
     const [historyDevice, setHistoryDevice] = useState<Device | null>(null);
     const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
@@ -46,7 +53,11 @@ export function DevicesView() {
                         <Typography variant="h5" component="h2">Registered Devices</Typography>
                     </Box>
 
-                    {devices.length > 0 ? (
+                    {isLoading ? (
+                        <Box sx={{ py: 8, textAlign: 'center' }}>
+                            <CircularProgress />
+                        </Box>
+                    ) : devices.length > 0 ? (
                         <Grid container spacing={3}>
                             {devices.map((device, index) => (
                                 <Grid size={{ xs: 12, sm: 6, md: 4, lg: 3 }} key={device.id}>
@@ -56,7 +67,6 @@ export function DevicesView() {
                                                 device={device}
                                                 onHistoryClick={() => handleHistoryClick(device)}
                                                 onSimulateClick={() => handleSimulateClick(device)}
-                                                onDelete={removeDevice}
                                             />
                                         </Box>
                                     </Grow>
@@ -65,12 +75,17 @@ export function DevicesView() {
                         </Grid>
                     ) : (
                         <Box sx={{ py: 8, textAlign: 'center' }}>
-                            <Typography variant="h6" color="text.secondary">No devices found</Typography>
+                            <Typography variant="h6" color="text.secondary">
+                                No devices found.
+                            </Typography>
+                            <Typography color="text.secondary">
+                                You can create a virtual device from the Dashboard.
+                            </Typography>
                         </Box>
                     )}
                 </Paper>
             </Fade>
-            <DeviceHistoryModal device={historyDevice} open={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} />
+            <DeviceHistoryModal device={historyDevice} open={isHistoryModalOpen} onClose={() => setIsHistoryModalOpen(false)} liveUpdateCallbackRef={liveUpdateCallbackRef} />
             <SimulationConfigModal device={simulationDevice} open={isSimModalOpen} onClose={() => setIsSimModalOpen(false)} />
         </>
         </Container>

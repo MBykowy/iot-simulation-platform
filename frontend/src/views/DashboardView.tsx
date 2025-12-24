@@ -1,8 +1,8 @@
-import { useAppStore } from '../stores/appStore';
-import { Grid, Paper, Box, Typography, Fade, Container } from '@mui/material';
-import { AddDeviceForm } from '../components/AddDeviceForm';
-import { EventSimulatorForm } from '../components/EventSimulatorForm';
-import { Tune } from "@mui/icons-material";
+import {useAppStore} from '../stores/appStore';
+import {Box, Container, Fade, Grid, Paper, Typography} from '@mui/material';
+import {AddDeviceForm} from '../components/AddDeviceForm';
+import {EventSimulatorForm} from '../components/EventSimulatorForm';
+import {Tune} from "@mui/icons-material";
 
 export function DashboardView() {
     const devices = useAppStore((state) => state.devices);

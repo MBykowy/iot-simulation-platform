@@ -3,13 +3,15 @@ package com.michalbykowy.iotsim.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.michalbykowy.iotsim.api.exception.ResourceNotFoundException;
 import com.michalbykowy.iotsim.controller.DeviceRequest;
 import com.michalbykowy.iotsim.controller.SimulationRequest;
 import com.michalbykowy.iotsim.model.Device;
 import com.michalbykowy.iotsim.model.DeviceRole;
 import com.michalbykowy.iotsim.model.DeviceType;
 import com.michalbykowy.iotsim.repository.DeviceRepository;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 public class DeviceService {
 
-
+    private static final Logger logger = LoggerFactory.getLogger(DeviceService.class);
     private final DeviceRepository deviceRepository;
     private final SimpMessagingTemplate messagingTemplate;
     private final SimulationEngine simulationEngine;
@@ -60,7 +62,7 @@ public class DeviceService {
     @Transactional
     public Device updateDeviceName(String deviceId, String newName) {
         Device device = deviceRepository.findById(deviceId)
-                .orElseThrow(() -> new RuntimeException("Device not found: " + deviceId));
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found with id: " + deviceId));
 
         device.setName(newName);
         Device savedDevice = deviceRepository.save(device);
@@ -72,20 +74,19 @@ public class DeviceService {
 
     @Transactional
     public void deleteDevice(String deviceId) {
-        if (deviceRepository.existsById(deviceId)) {
-            deviceRepository.deleteById(deviceId);
-            System.out.println("DEVICE SERVICE: Deleted device with id: " + deviceId);
-        } else {
-            System.err.println("DEVICE SERVICE: Device with id " + deviceId + " not found. Nothing to delete.");
+        if (!deviceRepository.existsById(deviceId)) {
+            throw new ResourceNotFoundException("Cannot delete. Device not found with id: " + deviceId);
         }
+        deviceRepository.deleteById(deviceId);
+        logger.info("Deleted device with id: {}", deviceId);
     }
 
     @Transactional
     public Device configureSimulation(String deviceId, SimulationRequest request) throws JsonProcessingException {
         Device device = deviceRepository.findById(deviceId)
-                .orElseThrow(() -> new RuntimeException("Device not found: " + deviceId));
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found with id: " + deviceId));
 
-        if (!"VIRTUAL".equals(device.getType())) {
+        if (device.getType() != DeviceType.VIRTUAL) {
             throw new IllegalArgumentException("Simulation can only be configured for VIRTUAL devices.");
         }
 
@@ -101,11 +102,13 @@ public class DeviceService {
     @Transactional
     public Device stopSimulation(String deviceId) {
         Device device = deviceRepository.findById(deviceId)
-                .orElseThrow(() -> new RuntimeException("Device not found: " + deviceId));
+                .orElseThrow(() -> new ResourceNotFoundException("Device not found with id: " + deviceId));
 
         device.setSimulationActive(false);
         Device savedDevice = deviceRepository.save(device);
+
         messagingTemplate.convertAndSend("/topic/devices", savedDevice);
+
         return savedDevice;
     }
 
@@ -121,11 +124,12 @@ public class DeviceService {
             rootNode = objectMapper.readTree(rawState);
             if (rootNode.has("sensors") && rootNode.get("sensors").isObject()) {
                 finalState = rootNode.get("sensors").toString();
-                System.out.println("DEVICE_SERVICE: Detected MQTT payload, extracting 'sensors' object.");
+                logger.debug("Detected MQTT payload with 'sensors' object for deviceId: {}", deviceId);
             } else {
                 finalState = rawState;
             }
         } catch (JsonProcessingException e) {
+            logger.debug("Could not parse JSON state for deviceId: {}. Using raw state.", deviceId, e);
             finalState = rawState;
             rootNode = objectMapper.createObjectNode();
         }
@@ -134,10 +138,9 @@ public class DeviceService {
         Device device = deviceRepository.findById(deviceId)
                 .orElseGet(() -> {
                     String deviceName = finalRootNode.path("name").asText("Physical Device #" + deviceId.substring(0, 6));
-                    System.out.println("DEVICE_SERVICE: Device " + deviceId + " not found. Creatling new with name: " + deviceName);
+                    logger.info("Device {} not found. Creating a new physical device with name: {}", deviceId, deviceName);
                     return new Device(deviceId, deviceName, DeviceType.PHYSICAL, DeviceRole.SENSOR, "{}");
                 });
-
 
         device.setCurrentState(finalState);
         Device savedDevice = deviceRepository.save(device);

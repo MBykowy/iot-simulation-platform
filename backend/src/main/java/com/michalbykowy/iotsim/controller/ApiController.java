@@ -1,14 +1,11 @@
 package com.michalbykowy.iotsim.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.influxdb.client.InfluxDBClient;
 import com.michalbykowy.iotsim.model.Device;
 import com.michalbykowy.iotsim.model.Rule;
 import com.michalbykowy.iotsim.service.DeviceService;
 import com.michalbykowy.iotsim.service.RuleService;
 import com.michalbykowy.iotsim.service.TimeSeriesService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -74,24 +71,17 @@ public class ApiController {
     }
 
     @PostMapping("/devices/{deviceId}/simulation")
-    public ResponseEntity<Device> startOrUpdateSimulation(@PathVariable String deviceId, @RequestBody SimulationRequest request) {
-        try {
-            Device device = deviceService.configureSimulation(deviceId, request);
-            return ResponseEntity.ok(device);
-        } catch (Exception e) {
-            return ResponseEntity.badRequest().build();
-        }
+    public ResponseEntity<Device> startOrUpdateSimulation(@PathVariable String deviceId, @RequestBody SimulationRequest request) throws JsonProcessingException {
+        Device device = deviceService.configureSimulation(deviceId, request);
+        return ResponseEntity.ok(device);
     }
 
     @DeleteMapping("/devices/{deviceId}/simulation")
     public ResponseEntity<Device> stopSimulation(@PathVariable String deviceId) {
-        try {
-            Device device = deviceService.stopSimulation(deviceId);
-            return ResponseEntity.ok(device);
-        } catch (Exception e) {
-            return ResponseEntity.notFound().build();
-        }
+        Device device = deviceService.stopSimulation(deviceId);
+        return ResponseEntity.ok(device);
     }
+
 
     @GetMapping("/devices/{deviceId}/history")
     public ResponseEntity<List<Map<String, Object>>> getDeviceHistory(
@@ -105,17 +95,11 @@ public class ApiController {
     @PutMapping("/devices/{deviceId}")
     public ResponseEntity<Device> updateDevice(@PathVariable String deviceId, @RequestBody UpdateDeviceRequest request) {
         if (request.name() == null || request.name().trim().isEmpty()) {
-            return ResponseEntity.badRequest().build();
+            throw new IllegalArgumentException("Device name cannot be null or empty.");
         }
-        try {
-            Device updatedDevice = deviceService.updateDeviceName(deviceId, request.name());
-            return ResponseEntity.ok(updatedDevice);
-        } catch (RuntimeException e) {
-            return ResponseEntity.notFound().build();
-        }
+        Device updatedDevice = deviceService.updateDeviceName(deviceId, request.name());
+        return ResponseEntity.ok(updatedDevice);
     }
-
-
 
     @GetMapping("/logs/history")
     public List<Map<String, Object>> getLogHistory(@RequestParam(defaultValue = "1h") String range) {

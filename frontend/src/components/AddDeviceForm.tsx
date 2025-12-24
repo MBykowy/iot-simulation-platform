@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { Box, Button, TextField, Select, MenuItem, FormControl, InputLabel, Typography } from '@mui/material';
-import { useAppStore } from '../stores/appStore';
-import type { DeviceRole } from '../types';
+import React, {useState} from 'react';
+import {Box, Button, FormControl, InputLabel, MenuItem, Select, TextField, Typography} from '@mui/material';
+import {useAppStore} from '../stores/appStore';
+import type {DeviceRole} from '../types';
 
 const API_URL = window.location.origin;
 

@@ -1,6 +1,5 @@
 package com.michalbykowy.iotsim.service;
 
-import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jayway.jsonpath.JsonPath;
 import com.michalbykowy.iotsim.model.*;
@@ -8,17 +7,23 @@ import com.michalbykowy.iotsim.repository.DeviceRepository;
 import com.michalbykowy.iotsim.repository.RuleRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 @Service
+//atomowa transakcja od mqtt do końca łańcucha
+@Transactional(propagation = Propagation.MANDATORY)
 public class SimulationEngine {
     private static final Logger logger = LoggerFactory.getLogger(SimulationEngine.class);
-    private static final int MAX_RECURSION_DEPTH = 10;
+
+    @Value("${engine.rules.max-recursion-depth}")
+    private int maxRecursionDepth;
 
     private final RuleRepository ruleRepository;
     private final DeviceRepository deviceRepository;
@@ -40,8 +45,8 @@ public class SimulationEngine {
     }
 
     private void processEvent(Device changedDevice, int depth) {
-        if (depth >= MAX_RECURSION_DEPTH) {
-            logger.error("SIM ENGINE: Max recursion depth ({}) reached for device {}. Halting chain.", MAX_RECURSION_DEPTH, changedDevice.getId());
+        if (depth >= maxRecursionDepth) {
+            logger.error("SIM ENGINE: Max recursion depth ({}) reached for device {}. Halting chain.", maxRecursionDepth, changedDevice.getId());
             return;
         }
         logger.info("SIM ENGINE (Depth {}): Processing event for device: {}", depth, changedDevice.getId());

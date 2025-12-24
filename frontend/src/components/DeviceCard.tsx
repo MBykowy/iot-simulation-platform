@@ -1,54 +1,41 @@
-import type { Device } from '../types';
-import { Card, CardContent, Typography, Box, Chip, IconButton, Stack, Tooltip } from '@mui/material';
+import type {Device} from '../types';
+import {Box, Card, CardContent, Chip, IconButton, Stack, Tooltip, Typography} from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import EditIcon from '@mui/icons-material/Edit';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import SensorsIcon from '@mui/icons-material/Sensors';
 import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import HistoryIcon from '@mui/icons-material/Timeline';
+import {useDeviceActions} from '../hooks/useDeviceActions';
 
-const API_URL = import.meta.env.VITE_API_URL || window.location.origin;
 
 interface DeviceCardProps {
     device: Device;
     onHistoryClick: () => void;
     onSimulateClick: () => void;
-    onDelete: (deviceId: string) => void;
 }
 
-export function DeviceCard({ device, onHistoryClick, onSimulateClick, onDelete }: DeviceCardProps) {
+export function DeviceCard({ device, onHistoryClick, onSimulateClick }: DeviceCardProps) {
+    const { renameDevice, deleteDevice } = useDeviceActions();
 
     const handleRename = (event: React.MouseEvent) => {
         event.stopPropagation();
-        const newName = window.prompt("Enter new name for the device:", device.name);
-
-        if (newName && newName.trim() !== "" && newName !== device.name) {
-            fetch(`${API_URL}/api/devices/${device.id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: newName }),
-            })
-                .then(response => {
-                    if (!response.ok) throw new Error('Failed to rename device');
-                })
-                .catch(err => console.error(err));
-        }
+        renameDevice(device.id, device.name);
     };
 
     const handleDelete = (event: React.MouseEvent) => {
         event.stopPropagation();
-        if (window.confirm(`Are you sure you want to delete ${device.name}?`)) {
-            fetch(`${API_URL}/api/devices/${device.id}`, { method: 'DELETE' })
-                .then(response => {
-                    if (response.ok) {
-                        onDelete(device.id);
-                    } else {
-                        throw new Error('Failed to delete device');
-                    }
-                })
-                .catch(err => console.error(err));
+        deleteDevice(device.id, device.name);
+    };
+
+    const parseState = (state: string): string => {
+        try {
+            return JSON.stringify(JSON.parse(state || '{}'), null, 2);
+        } catch (e) {
+            return state || '{}';
         }
     };
+
 
     return (
         <Card sx={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
@@ -84,7 +71,7 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onDelete }
                         overflowY: 'auto',
                     }}
                 >
-                    <code>{JSON.stringify(JSON.parse(device.currentState || '{}'), null, 2)}</code>
+                    <code>{parseState(device.currentState)}</code>
                 </Box>
             </CardContent>
             <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', borderTop: 1, borderColor: 'divider' }}>
@@ -104,7 +91,6 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onDelete }
                             </IconButton>
                         </Tooltip>
                     )}
-
                     <Tooltip title="View History">
                         <IconButton size="small" onClick={onHistoryClick}><HistoryIcon fontSize="small" /></IconButton>
                     </Tooltip>

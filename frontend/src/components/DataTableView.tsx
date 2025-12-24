@@ -1,8 +1,11 @@
-import { useAppStore } from '../stores/appStore';
-import { Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Box } from '@mui/material';
+import {Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow} from '@mui/material';
+import type {ChartDataPoint} from '../stores/appStore';
 
-export function DataTableView() {
-    const chartData = useAppStore((state) => state.chartData);
+interface DataTableViewProps {
+    chartData: ChartDataPoint[];
+}
+
+export function DataTableView({ chartData }: DataTableViewProps) {
 
     const headers = Array.from(new Set(chartData.flatMap(row => Object.keys(row))));
 
@@ -18,7 +21,7 @@ export function DataTableView() {
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {chartData.slice().reverse().map((row, index) => ( // Odwracamy, aby najnowsze były na górze
+                        {chartData.slice().reverse().map((row, index) => (
                             <TableRow key={index}>
                                 {headers.map(header => (
                                     <TableCell key={header}>

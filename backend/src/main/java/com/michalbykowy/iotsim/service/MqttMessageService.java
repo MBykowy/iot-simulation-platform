@@ -1,12 +1,15 @@
 package com.michalbykowy.iotsim.service;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
 import java.util.Map;
 
 @Service
 public class MqttMessageService {
 
+    private static final Logger logger = LoggerFactory.getLogger(MqttMessageService.class);
     private final DeviceService deviceService;
 
     public MqttMessageService(DeviceService deviceService) {
@@ -25,7 +28,7 @@ public class MqttMessageService {
             deviceService.handleDeviceEvent(eventPayload);
 
         } catch (Exception e) {
-            System.err.println("Error processing MQTT message: " + e.getMessage());
+            logger.error("Error processing MQTT message on topic: {}", topic, e);
         }
     }
 }

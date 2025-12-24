@@ -2,7 +2,6 @@ package com.michalbykowy.iotsim.config;
 
 import com.michalbykowy.iotsim.service.MqttMessageService;
 import org.eclipse.paho.client.mqttv3.MqttConnectOptions;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -28,8 +27,11 @@ public class MqttConfig {
     @Value("${mqtt.topic}")
     private String topic;
 
-    @Autowired
-    private MqttMessageService mqttMessageService;
+    private final MqttMessageService mqttMessageService;
+
+    public MqttConfig(MqttMessageService mqttMessageService) {
+        this.mqttMessageService = mqttMessageService;
+    }
 
     @Bean
     public MqttPahoClientFactory mqttClientFactory() {

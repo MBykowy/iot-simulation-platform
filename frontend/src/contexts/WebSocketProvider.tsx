@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useEffect, useRef, useState } from 'react';
-import { Client , type IMessage } from '@stomp/stompjs';
+import React, {createContext, useContext, useEffect, useRef, useState} from 'react';
+import {Client, type IMessage} from '@stomp/stompjs';
 
 const WS_URL = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}/ws`;
 

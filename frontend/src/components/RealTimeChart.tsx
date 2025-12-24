@@ -1,8 +1,7 @@
-import { useState, useMemo, useEffect } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useAppStore, type AppState } from '../stores/appStore';
-import { Box, FormGroup, FormControlLabel, Checkbox } from '@mui/material';
-import { useShallow } from 'zustand/react/shallow';
+import {useEffect, useMemo, useState} from 'react';
+import {CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis} from 'recharts';
+import {Box, Checkbox, FormControlLabel, FormGroup} from '@mui/material';
+import type {ChartDataPoint} from '../stores/appStore';
 
 const parseRangeToMs = (range: string): number => {
     const value = parseInt(range.slice(0, -1));
@@ -15,31 +14,25 @@ const parseRangeToMs = (range: string): number => {
     }
 };
 
-
 type AxisDomain = number | 'auto' | 'dataMin' | 'dataMax';
 
-export function RealTimeChart() {
-    const { chartData, selectedRange } = useAppStore(
-        useShallow((state: AppState) => ({
-            chartData: state.chartData,
-            selectedRange: state.selectedRange,
-        }))
-    );
+interface RealTimeChartProps {
+    chartData: ChartDataPoint[];
+    selectedRange: string;
+}
 
+export function RealTimeChart({ chartData, selectedRange }: RealTimeChartProps) {
     const [timeDomain, setTimeDomain] = useState<[AxisDomain, AxisDomain]>(['auto', 'auto']);
 
     useEffect(() => {
         const rangeMs = parseRangeToMs(selectedRange);
-
         const updateDomain = () => {
             const now = Date.now();
             setTimeDomain([now - rangeMs, now]);
         };
-
         updateDomain();
         const intervalId = setInterval(updateDomain, 1000);
         return () => clearInterval(intervalId);
-
     }, [selectedRange]);
 
     const allKeys = useMemo(() => {
@@ -85,6 +78,7 @@ export function RealTimeChart() {
             </FormGroup>
 
             <ResponsiveContainer width="100%" height={400}>
+                {/* ... (reszta JSX bez zmian) ... */}
                 <LineChart data={chartData} syncId="anyId">
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.2)" />
                     <XAxis

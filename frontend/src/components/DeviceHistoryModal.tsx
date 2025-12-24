@@ -1,19 +1,20 @@
-import { useEffect, useState } from 'react';
 import {
-    Modal,
     Box,
-    Typography,
-    CircularProgress,
     Button,
     ButtonGroup,
+    CircularProgress,
+    Modal,
+    ToggleButton,
     ToggleButtonGroup,
-    ToggleButton
+    Typography
 } from '@mui/material';
-import { Timeline as TimelineIcon, TableRows as TableRowsIcon } from '@mui/icons-material';
+import {TableRows as TableRowsIcon, Timeline as TimelineIcon} from '@mui/icons-material';
 import type {Device} from '../types';
-import { useAppStore } from '../stores/appStore';
-import { RealTimeChart } from './RealTimeChart';
-import { DataTableView } from './DataTableView';
+import {RealTimeChart} from './RealTimeChart';
+import {DataTableView} from './DataTableView';
+import {useChart} from '../hooks/useChart';
+import {useEffect} from "react";
+import {useAppStore} from "../stores/appStore.tsx";
 
 const style = {
     position: 'absolute' as 'absolute',
@@ -29,50 +30,49 @@ const style = {
     borderRadius: 3,
 };
 
+const timeRanges = ['1m', '15m', '30m', '1h', '6h', '12h', '24h', '7d'];
+
+interface DeviceHistoryModalProps {
+    device: Device | null;
+    open: boolean;
+    onClose: () => void;
+    liveUpdateCallbackRef: React.MutableRefObject<((device: Device) => void) | null>;
+}
+
 interface DeviceHistoryModalProps {
     device: Device | null;
     open: boolean;
     onClose: () => void;
 }
 
-const timeRanges = ['1m', '15m', '30m', '1h', '6h', '12h', '24h', '7d'];
-
 export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModalProps) {
     const {
-        isChartLoading,
-        loadChartData,
-        clearChartData,
-        setActiveChartDevice,
-        selectedRange
-    } = useAppStore();
+        chartData,
+        isLoading,
+        viewMode,
+        setViewMode,
+        selectedRange,
+        handleRangeChange,
+        appendDataPoint,
+    } = useChart(open ? device?.id ?? null : null);
 
-    const [viewMode, setViewMode] = useState<'chart' | 'table'>('chart');
+    const setLiveUpdateCallback = useAppStore((state) => state.setLiveUpdateCallback);
 
     useEffect(() => {
-        if (open && device) {
-            setActiveChartDevice(device.id);
-            loadChartData(device.id, selectedRange);
+        if (open) {
+            setLiveUpdateCallback(appendDataPoint);
         }
 
         return () => {
-            if (!open) {
-                clearChartData();
-                setViewMode('chart');
-            }
+            setLiveUpdateCallback(null);
         };
-    }, [open, device]);
+    }, [open, appendDataPoint, setLiveUpdateCallback]);
 
-    const handleRangeChange = (range: string) => {
-        if (device) {
-            loadChartData(device.id, range);
-        }
-    };
     return (
         <Modal open={open} onClose={onClose}>
             <Box sx={style}>
                 <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
                     <Typography variant="h6" component="h2">History for {device?.name}</Typography>
-
                     <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
                         <ToggleButtonGroup
                             value={viewMode}
@@ -83,7 +83,6 @@ export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModal
                             <ToggleButton value="chart" aria-label="chart view"><TimelineIcon /></ToggleButton>
                             <ToggleButton value="table" aria-label="table view"><TableRowsIcon /></ToggleButton>
                         </ToggleButtonGroup>
-
                         <ButtonGroup variant="outlined" size="small">
                             {timeRanges.map((range) => (
                                 <Button
@@ -98,12 +97,20 @@ export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModal
                     </Box>
                 </Box>
 
-                {isChartLoading ? (
+                {isLoading ? (
                     <Box sx={{ height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <CircularProgress />
                     </Box>
+                ) : chartData.length > 0 ? (
+                    viewMode === 'chart'
+                        ? <RealTimeChart chartData={chartData} selectedRange={selectedRange} />
+                        : <DataTableView chartData={chartData} />
                 ) : (
-                    viewMode === 'chart' ? <RealTimeChart /> : <DataTableView />
+                    <Box sx={{ height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <Typography color="text.secondary">
+                            No data available for the selected time range.
+                        </Typography>
+                    </Box>
                 )}
             </Box>
         </Modal>

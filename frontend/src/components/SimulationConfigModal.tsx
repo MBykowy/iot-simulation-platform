@@ -1,6 +1,19 @@
-import { useState, useEffect } from 'react';
+import {useEffect, useState} from 'react';
 import type {Device, SimulationConfig, SimulationFieldConfig, SimulationPattern} from '../types';
-import { Modal, Box, Typography, Button, Select, MenuItem, TextField, FormControl, InputLabel, Grid, Paper, IconButton } from '@mui/material';
+import {
+    Box,
+    Button,
+    FormControl,
+    Grid,
+    IconButton,
+    InputLabel,
+    MenuItem,
+    Modal,
+    Paper,
+    Select,
+    TextField,
+    Typography
+} from '@mui/material';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
 

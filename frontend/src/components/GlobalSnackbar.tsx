@@ -1,5 +1,5 @@
-import { Snackbar, Alert } from '@mui/material';
-import { useAppStore } from '../stores/appStore';
+import {Alert, Snackbar} from '@mui/material';
+import {useAppStore} from '../stores/appStore';
 
 export function GlobalSnackbar() {
     const { snackbar, hideSnackbar } = useAppStore();

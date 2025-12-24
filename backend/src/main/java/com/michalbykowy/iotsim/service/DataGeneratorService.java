@@ -4,11 +4,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.michalbykowy.iotsim.controller.SimulationFieldConfig;
 import com.michalbykowy.iotsim.controller.SimulationRequest;
 import com.michalbykowy.iotsim.model.Device;
+import com.michalbykowy.iotsim.model.SimulationPattern;
 import com.michalbykowy.iotsim.repository.DeviceRepository;
+import com.michalbykowy.iotsim.service.generator.GeneratorStrategy;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -16,7 +17,6 @@ import org.springframework.stereotype.Service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Service
@@ -25,23 +25,25 @@ public class DataGeneratorService {
 
     private static final Logger logger = LoggerFactory.getLogger(DataGeneratorService.class);
 
-
     private final DeviceRepository deviceRepository;
     private final DeviceService deviceService;
     private final ObjectMapper objectMapper;
-
     private final Map<String, Long> lastUpdateTimestamps = new ConcurrentHashMap<>();
-    private final Random random = new Random();
 
-    public DataGeneratorService(DeviceRepository deviceRepository, DeviceService deviceService, ObjectMapper objectMapper) {
+    // Spring automatycznie użyje nazw beanów (SINE RANDOM) jako kluczy.
+    private final Map<SimulationPattern, GeneratorStrategy> strategies;
+
+    public DataGeneratorService(DeviceRepository deviceRepository, DeviceService deviceService, ObjectMapper objectMapper, Map<String, GeneratorStrategy> strategyBeans) {
         this.deviceRepository = deviceRepository;
         this.deviceService = deviceService;
         this.objectMapper = objectMapper;
+        this.strategies = new HashMap<>();
+        strategyBeans.forEach((name, strategy) -> strategies.put(SimulationPattern.valueOf(name), strategy));
     }
 
     @PostConstruct
     public void init() {
-        logger.info("DataGeneratorService initialized and scheduling is enabled.");
+        logger.info("DataGeneratorService initialized. Loaded strategies: {}", strategies.keySet());
     }
 
     @Scheduled(fixedRate = 1000)
@@ -78,31 +80,16 @@ public class DataGeneratorService {
             stateMap.put(fieldName, value);
         }
 
-        Map<String, Map<String, Double>> payload = new HashMap<>();
-        payload.put("sensors", stateMap);
+        Map<String, Map<String, Double>> payload = Map.of("sensors", stateMap);
         return objectMapper.writeValueAsString(payload);
     }
 
-
     private double generateValueForField(SimulationFieldConfig config) {
-        double value;
-        Map<String, Object> params = config.parameters();
-
-        switch (config.pattern()) {
-            case SINE:
-                double amplitude = ((Number) params.get("amplitude")).doubleValue();
-                double period = ((Number) params.get("period")).doubleValue();
-                double offset = ((Number) params.get("offset")).doubleValue();
-                value = Math.sin(System.currentTimeMillis() / (period * 1000.0) * 2 * Math.PI) * amplitude + offset;
-                break;
-            case RANDOM:
-                double min = ((Number) params.get("min")).doubleValue();
-                double max = ((Number) params.get("max")).doubleValue();
-                value = min + (max - min) * random.nextDouble();
-                break;
-            default:
-                throw new IllegalArgumentException("Unknown pattern: " + config.pattern());
+        GeneratorStrategy strategy = strategies.get(config.pattern());
+        if (strategy == null) {
+            throw new IllegalArgumentException("Unknown or unsupported simulation pattern: " + config.pattern());
         }
+        double value = strategy.generate(config.parameters());
         return Math.round(value * 100.0) / 100.0;
     }
 }
