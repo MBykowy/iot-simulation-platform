@@ -1,5 +1,7 @@
 FROM maven:3.9-eclipse-temurin-21 AS builder
 
+LABEL maintainer="Michal Bykowy"
+
 WORKDIR /app
 
 COPY pom.xml .
@@ -11,6 +13,8 @@ RUN mvn package -DskipTests
 
 
 FROM eclipse-temurin:21-jre
+
+LABEL maintainer="Michal Bykowy"
 
 WORKDIR /app
 

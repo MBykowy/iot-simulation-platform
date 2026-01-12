@@ -1,4 +1,4 @@
-package com.michalbykowy.iotsim.controller;
+package com.michalbykowy.iotsim.dto;
 
 import com.michalbykowy.iotsim.model.SimulationPattern;
 

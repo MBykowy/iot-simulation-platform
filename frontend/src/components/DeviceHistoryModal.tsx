@@ -1,3 +1,4 @@
+import {useEffect} from 'react';
 import {
     Box,
     Button,
@@ -6,18 +7,19 @@ import {
     Modal,
     ToggleButton,
     ToggleButtonGroup,
-    Typography
+    Typography,
 } from '@mui/material';
 import {TableRows as TableRowsIcon, Timeline as TimelineIcon} from '@mui/icons-material';
 import type {Device} from '../types';
 import {RealTimeChart} from './RealTimeChart';
 import {DataTableView} from './DataTableView';
 import {useChart} from '../hooks/useChart';
-import {useEffect} from "react";
-import {useAppStore} from "../stores/appStore.tsx";
+import {useAppStore} from '../stores/appStore';
+
+const modalPosition = 'absolute' as const;
 
 const style = {
-    position: 'absolute' as 'absolute',
+    position: modalPosition,
     top: '50%',
     left: '50%',
     transform: 'translate(-50%, -50%)',
@@ -32,20 +34,46 @@ const style = {
 
 const timeRanges = ['1m', '15m', '30m', '1h', '6h', '12h', '24h', '7d'];
 
-interface DeviceHistoryModalProps {
-    device: Device | null;
-    open: boolean;
-    onClose: () => void;
-    liveUpdateCallbackRef: React.MutableRefObject<((device: Device) => void) | null>;
+
+interface TimeRangeButtonProps {
+    readonly range: string;
+    readonly selectedRange: string;
+    readonly onRangeChange: (range: string) => void;
 }
 
-interface DeviceHistoryModalProps {
-    device: Device | null;
-    open: boolean;
-    onClose: () => void;
+function TimeRangeButton({range, selectedRange, onRangeChange}: TimeRangeButtonProps) {
+    const handleClick = () => {
+        onRangeChange(range);
+    };
+
+    let variant: 'contained' | 'outlined';
+    if (selectedRange === range) {
+        variant = 'contained';
+    } else {
+        variant = 'outlined';
+    }
+
+    return (
+        <Button variant={variant} onClick={handleClick}>
+            {range}
+        </Button>
+    );
 }
 
-export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModalProps) {
+
+interface DeviceHistoryModalProps {
+    readonly device: Device | null;
+    readonly open: boolean;
+    readonly onClose: () => void;
+}
+
+export function DeviceHistoryModal({device, open, onClose}: DeviceHistoryModalProps) {
+    // Removing ternary operator
+    let chartDeviceId: string | null = null;
+    if (open && device) {
+        chartDeviceId = device.id;
+    }
+
     const {
         chartData,
         isLoading,
@@ -54,7 +82,7 @@ export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModal
         selectedRange,
         handleRangeChange,
         appendDataPoint,
-    } = useChart(open ? device?.id ?? null : null);
+    } = useChart(chartDeviceId);
 
     const setLiveUpdateCallback = useAppStore((state) => state.setLiveUpdateCallback);
 
@@ -68,50 +96,79 @@ export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModal
         };
     }, [open, appendDataPoint, setLiveUpdateCallback]);
 
+    const handleViewModeChange = (
+        _event: React.MouseEvent<HTMLElement>,
+        newMode: 'chart' | 'table' | null,
+    ) => {
+        if (newMode) {
+            setViewMode(newMode);
+        }
+    };
+
+    let content: React.ReactNode;
+    if (isLoading) {
+        content = (
+            <Box sx={{height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                <CircularProgress/>
+            </Box>
+        );
+    } else if (chartData.length > 0) {
+        if (viewMode === 'chart') {
+            content = <RealTimeChart chartData={chartData} selectedRange={selectedRange}/>;
+        } else {
+            content = <DataTableView chartData={chartData}/>;
+        }
+    } else {
+        content = (
+            <Box sx={{height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+                <Typography color="text.secondary">
+                    No data available for the selected time range.
+                </Typography>
+            </Box>
+        );
+    }
+
     return (
         <Modal open={open} onClose={onClose}>
             <Box sx={style}>
-                <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 2 }}>
-                    <Typography variant="h6" component="h2">History for {device?.name}</Typography>
-                    <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                <Box sx={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    mb: 2,
+                    flexWrap: 'wrap',
+                    gap: 2
+                }}>
+                    <Typography variant="h6" component="h2">
+                        History for {device?.name}
+                    </Typography>
+                    <Box sx={{display: 'flex', gap: 2, alignItems: 'center'}}>
                         <ToggleButtonGroup
                             value={viewMode}
                             exclusive
-                            onChange={(_e, newMode) => { if (newMode) setViewMode(newMode); }}
+                            onChange={handleViewModeChange}
                             size="small"
                         >
-                            <ToggleButton value="chart" aria-label="chart view"><TimelineIcon /></ToggleButton>
-                            <ToggleButton value="table" aria-label="table view"><TableRowsIcon /></ToggleButton>
+                            <ToggleButton value="chart" aria-label="chart view">
+                                <TimelineIcon/>
+                            </ToggleButton>
+                            <ToggleButton value="table" aria-label="table view">
+                                <TableRowsIcon/>
+                            </ToggleButton>
                         </ToggleButtonGroup>
                         <ButtonGroup variant="outlined" size="small">
                             {timeRanges.map((range) => (
-                                <Button
+                                <TimeRangeButton
                                     key={range}
-                                    variant={selectedRange === range ? 'contained' : 'outlined'}
-                                    onClick={() => handleRangeChange(range)}
-                                >
-                                    {range}
-                                </Button>
+                                    range={range}
+                                    selectedRange={selectedRange}
+                                    onRangeChange={handleRangeChange}
+                                />
                             ))}
                         </ButtonGroup>
                     </Box>
                 </Box>
-
-                {isLoading ? (
-                    <Box sx={{ height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <CircularProgress />
-                    </Box>
-                ) : chartData.length > 0 ? (
-                    viewMode === 'chart'
-                        ? <RealTimeChart chartData={chartData} selectedRange={selectedRange} />
-                        : <DataTableView chartData={chartData} />
-                ) : (
-                    <Box sx={{ height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Typography color="text.secondary">
-                            No data available for the selected time range.
-                        </Typography>
-                    </Box>
-                )}
+                {content}
             </Box>
         </Modal>
     );

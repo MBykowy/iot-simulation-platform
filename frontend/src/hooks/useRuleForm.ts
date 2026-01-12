@@ -1,7 +1,7 @@
-import {useMemo, useState} from 'react';
-import {useAppStore} from '../stores/appStore';
-import {apiClient} from "../api/apiClient.ts";
-
+import { useMemo, useState } from 'react';
+import { useAppStore } from '../stores/appStore';
+import { apiClient } from '../api/apiClient';
+import type { AggregateFunction, RuleOperator } from '../types';
 
 interface RuleFormData {
     name: string;
@@ -10,8 +10,8 @@ interface RuleFormData {
     triggerPath: string;
     triggerField: string;
     triggerRange: string;
-    triggerAggregate: 'mean' | 'max' | 'min';
-    triggerOperator: 'EQUALS' | 'GREATER_THAN' | 'LESS_THAN';
+    triggerAggregate: AggregateFunction;
+    triggerOperator: RuleOperator;
     triggerValue: string;
     actionDeviceId: string;
     actionNewState: string;
@@ -24,13 +24,12 @@ const INITIAL_STATE: RuleFormData = {
     triggerPath: '$.temperature',
     triggerField: 'temperature',
     triggerRange: '5m',
-    triggerAggregate: 'mean',
+    triggerAggregate: 'MEAN',
     triggerOperator: 'GREATER_THAN',
     triggerValue: '25',
     actionDeviceId: '',
     actionNewState: '{"status": "ON"}',
 };
-
 
 export function useRuleForm(onRuleAdded: () => void) {
     const [formData, setFormData] = useState<RuleFormData>(INITIAL_STATE);
@@ -45,8 +44,11 @@ export function useRuleForm(onRuleAdded: () => void) {
         );
     }, [formData]);
 
-    const updateField = <K extends keyof RuleFormData>(field: K, value: RuleFormData[K]) => {
-        setFormData(prev => ({ ...prev, [field]: value }));
+    const updateField = <K extends keyof RuleFormData>(
+        field: K,
+        value: RuleFormData[K],
+    ) => {
+        setFormData((prev) => ({ ...prev, [field]: value }));
     };
 
     const handleSubmit = async (event: React.FormEvent) => {
@@ -57,20 +59,25 @@ export function useRuleForm(onRuleAdded: () => void) {
         }
         setIsSubmitting(true);
 
+        let triggerConfig;
 
-        const triggerConfig = formData.isTimeBased ? {
-            deviceId: formData.triggerDeviceId,
-            aggregate: formData.triggerAggregate,
-            field: formData.triggerField,
-            range: formData.triggerRange,
-            operator: formData.triggerOperator,
-            value: formData.triggerValue,
-        } : {
-            deviceId: formData.triggerDeviceId,
-            path: formData.triggerPath,
-            operator: formData.triggerOperator,
-            value: formData.triggerValue,
-        };
+        if (formData.isTimeBased) {
+            triggerConfig = {
+                deviceId: formData.triggerDeviceId,
+                aggregate: formData.triggerAggregate,
+                field: formData.triggerField,
+                range: formData.triggerRange,
+                operator: formData.triggerOperator,
+                value: formData.triggerValue,
+            };
+        } else {
+            triggerConfig = {
+                deviceId: formData.triggerDeviceId,
+                path: formData.triggerPath,
+                operator: formData.triggerOperator,
+                value: formData.triggerValue,
+            };
+        }
 
         let newStateParsed;
         try {
@@ -81,11 +88,14 @@ export function useRuleForm(onRuleAdded: () => void) {
             return;
         }
 
-        const actionConfig = { deviceId: formData.actionDeviceId, newState: newStateParsed };
+        const actionConfig = {
+            deviceId: formData.actionDeviceId,
+            newState: newStateParsed,
+        };
         const newRule = { name: formData.name, triggerConfig, actionConfig };
         const result = await apiClient('/api/rules', {
             method: 'POST',
-            body: newRule
+            body: newRule,
         });
 
         if (result) {

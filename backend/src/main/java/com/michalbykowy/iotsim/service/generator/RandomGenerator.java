@@ -5,10 +5,14 @@ import org.springframework.stereotype.Component;
 import java.util.Map;
 import java.util.Random;
 
-@Component("RANDOM")
+@Component("random")
 public class RandomGenerator implements GeneratorStrategy {
 
-    private final Random random = new Random();
+    private final Random random;
+
+    public RandomGenerator() {
+        this.random = new Random();
+    }
 
     @Override
     public double generate(Map<String, Object> params) {

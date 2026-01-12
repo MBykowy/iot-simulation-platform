@@ -1,12 +1,19 @@
-FROM node:20-alpine as build
+# build
+FROM node:20-alpine AS build
+
+LABEL maintainer="Michal Bykowy"
+
 WORKDIR /app
 COPY package*.json ./
 RUN npm install
 COPY . .
 RUN npm run build
 
-#Prod
+# prod
 FROM nginx:alpine
+
+LABEL maintainer="Michal Bykowy"
+
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 EXPOSE 80

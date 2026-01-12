@@ -26,20 +26,32 @@ public class MultiTargetLogAppender extends AppenderBase<ILoggingEvent> {
 
     @Override
     protected void append(ILoggingEvent event) {
+        // zabezpieczenie przed nieskończoną pętlą
+        if (event.getLoggerName().startsWith("com.influxdb")) {
+            return;
+        }
+
         LogLevel applicationLogLevel;
         try {
             applicationLogLevel = LogLevel.valueOf(event.getLevel().toString());
         } catch (IllegalArgumentException e) {
-            applicationLogLevel = LogLevel.INFO; // fallback
+            addWarn("Failed to map Logback level '"
+                    + event.getLevel()
+                    + "' to application LogLevel. Defaulting to INFO.", e);
+            applicationLogLevel = LogLevel.INFO;
         }
 
         if (messagingTemplate != null) {
-            LogMessage logMessage = new LogMessage(
-                    applicationLogLevel,
-                    event.getLoggerName(),
-                    event.getFormattedMessage()
-            );
-            messagingTemplate.convertAndSend("/topic/logs", logMessage);
+            try {
+                LogMessage logMessage = new LogMessage(
+                        applicationLogLevel,
+                        event.getLoggerName(),
+                        event.getFormattedMessage()
+                );
+                messagingTemplate.convertAndSend("/topic/logs", logMessage);
+            } catch (Exception e) {
+                addError("Failed to send log to WebSocket", e);
+            }
         }
 
         if (influxDBClient != null && bucket != null) {
@@ -52,8 +64,7 @@ public class MultiTargetLogAppender extends AppenderBase<ILoggingEvent> {
                         .time(Instant.ofEpochMilli(event.getTimeStamp()), WritePrecision.MS);
                 writeApi.writePoint(point);
             } catch (Exception e) {
-                //zabezpieczenie przed zapętleniem, gdyby logowanie influx generowało bład który będzie się logował
-                System.err.println("ERROR in MultiTargetLogAppender: " + e.getMessage());
+                addError("ERROR in MultiTargetLogAppender: Failed to write to InfluxDB", e);
             }
         }
     }

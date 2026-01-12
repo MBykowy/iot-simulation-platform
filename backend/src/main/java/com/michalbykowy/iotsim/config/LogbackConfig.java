@@ -13,7 +13,10 @@ public class LogbackConfig {
     private final InfluxDBClient influxDBClient;
     private final String bucket;
 
-    public LogbackConfig(SimpMessagingTemplate messagingTemplate, InfluxDBClient influxDBClient, @Value("${influxdb.bucket}") String bucket) {
+    public LogbackConfig(
+            SimpMessagingTemplate messagingTemplate,
+            InfluxDBClient influxDBClient,
+            @Value("${influx.bucket}") String bucket) {
         this.messagingTemplate = messagingTemplate;
         this.influxDBClient = influxDBClient;
         this.bucket = bucket;

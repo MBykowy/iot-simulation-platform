@@ -11,25 +11,30 @@ import org.springframework.integration.core.MessageProducer;
 import org.springframework.integration.mqtt.core.DefaultMqttPahoClientFactory;
 import org.springframework.integration.mqtt.core.MqttPahoClientFactory;
 import org.springframework.integration.mqtt.inbound.MqttPahoMessageDrivenChannelAdapter;
+import org.springframework.integration.mqtt.outbound.MqttPahoMessageHandler;
 import org.springframework.integration.mqtt.support.DefaultPahoMessageConverter;
+import org.springframework.messaging.Message;
 import org.springframework.messaging.MessageChannel;
 import org.springframework.messaging.MessageHandler;
 
 @Configuration
 public class MqttConfig {
 
-    @Value("${mqtt.broker.url}")
-    private String brokerUrl;
+    private static final long COMPLETION_TIMEOUT_MS = 5000;
 
-    @Value("${mqtt.client.id}")
-    private String clientId;
-
-    @Value("${mqtt.topic}")
-    private String topic;
-
+    private final String brokerUrl;
+    private final String clientId;
+    private final String topic;
     private final MqttMessageService mqttMessageService;
 
-    public MqttConfig(MqttMessageService mqttMessageService) {
+    public MqttConfig(
+            @Value("${mqtt.broker.url}") String brokerUrl,
+            @Value("${mqtt.client.id}") String clientId,
+            @Value("${mqtt.topic}") String topic,
+            MqttMessageService mqttMessageService) {
+        this.brokerUrl = brokerUrl;
+        this.clientId = clientId;
+        this.topic = topic;
         this.mqttMessageService = mqttMessageService;
     }
 
@@ -44,6 +49,8 @@ public class MqttConfig {
         return factory;
     }
 
+    //  INBOUND
+
     @Bean
     public MessageChannel mqttInputChannel() {
         return new DirectChannel();
@@ -53,7 +60,7 @@ public class MqttConfig {
     public MessageProducer inbound() {
         MqttPahoMessageDrivenChannelAdapter adapter =
                 new MqttPahoMessageDrivenChannelAdapter(clientId + "_inbound", mqttClientFactory(), topic);
-        adapter.setCompletionTimeout(5000);
+        adapter.setCompletionTimeout(COMPLETION_TIMEOUT_MS);
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1);
         adapter.setOutputChannel(mqttInputChannel());
@@ -63,10 +70,27 @@ public class MqttConfig {
     @Bean
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public MessageHandler handler() {
-        return message -> {
-            String topic = message.getHeaders().get("mqtt_receivedTopic", String.class);
+        return (Message<?> message) -> {
+            String receivedTopic = message.getHeaders().get("mqtt_receivedTopic", String.class);
             String payload = message.getPayload().toString();
-            mqttMessageService.handleMessage(topic, payload);
+            mqttMessageService.handleMessage(receivedTopic, payload);
         };
+    }
+
+    //  OUTBOUND
+
+    @Bean
+    public MessageChannel mqttOutboundChannel() {
+        return new DirectChannel();
+    }
+
+    @Bean
+    @ServiceActivator(inputChannel = "mqttOutboundChannel")
+    public MessageHandler mqttOutbound() {
+        MqttPahoMessageHandler messageHandler =
+                new MqttPahoMessageHandler(clientId + "_outbound", mqttClientFactory());
+        messageHandler.setAsync(true);
+        messageHandler.setDefaultTopic("iot/commands");
+        return messageHandler;
     }
 }

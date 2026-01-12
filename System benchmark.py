@@ -1,9 +1,10 @@
-import aiohttp
 import asyncio
 import json
 import random
-import sys
 import time
+from typing import Optional, List
+
+import aiohttp
 from aiomqtt import Client as MqttClient
 
 # --- Konfig ---
@@ -14,10 +15,20 @@ NUM_DEVICES = 50
 MESSAGES_PER_DEVICE = 20
 INTERVAL_MS = 200  # 5 wiadomości/s na urządzenie
 
-created_device_ids = []
+created_device_ids: List[str] = []
 
 
-async def create_virtual_device(session, idx):
+async def create_virtual_device(session: aiohttp.ClientSession, idx: int) -> Optional[str]:
+    """
+    Creates a single virtual device via the REST API.
+
+    Args:
+        session: The active aiohttp session.
+        idx: The index number for generating the device name.
+
+    Returns:
+        The ID of the created device, or None if creation failed.
+    """
     name = f"StressDevice_{idx}"
     payload = {"name": name, "type": "PHYSICAL", "ioType": "SENSOR"}
     try:
@@ -30,7 +41,13 @@ async def create_virtual_device(session, idx):
     return None
 
 
-async def simulate_device_mqtt(device_id):
+async def simulate_device_mqtt(device_id: str) -> None:
+    """
+    Simulates an IoT device sending telemetry data via MQTT.
+
+    Args:
+        device_id: The ID of the device to simulate.
+    """
     topic = f"iot/devices/{device_id}/data"
     # Losowe opóźnienie
     await asyncio.sleep(random.uniform(0, 2.0))
@@ -50,19 +67,28 @@ async def simulate_device_mqtt(device_id):
         print(f"Błąd MQTT: {e}")
 
 
-async def cleanup(session):
+async def cleanup(session: aiohttp.ClientSession) -> None:
+    """
+    Deletes all devices created during the test session.
+
+    Args:
+        session: The active aiohttp session.
+    """
     print("\n--- CZYSZCZENIE BAZY DANYCH ---")
     print(f"Usuwanie {len(created_device_ids)} urządzeń testowych...")
     for dev_id in created_device_ids:
         try:
             await session.delete(f"{API_URL}/devices/{dev_id}")
-        except:
+        except Exception:
             print(f"Nie udało się usunąć {dev_id}")
     print("Zakończono czyszczenie.")
 
 
-async def main():
-    print(f"=== STRESS TEST (SQLite Safe Mode) ===")
+async def main() -> None:
+    """
+    Main function for the system stress test.
+    """
+    print("=== STRESS TEST (SQLite Safe Mode) ===")
 
     async with aiohttp.ClientSession() as session:
         # 1. Tworzenie
@@ -84,7 +110,7 @@ async def main():
         print(f"\nTest zakończony w {duration:.2f}s")
 
         # 3. Cleanup
-        user_input = input("\nNaciśnij ENTER aby usunąć dane testowe ")
+        await asyncio.to_thread(input, "\nNaciśnij ENTER aby usunąć dane testowe ")
         await cleanup(session)
 
 

@@ -1,14 +1,32 @@
-import React, {useState} from 'react';
-import {Box, Button, FormControl, InputLabel, MenuItem, Select, TextField, Typography} from '@mui/material';
-import {useAppStore} from '../stores/appStore';
-import type {DeviceRole} from '../types';
+import React, { useState } from 'react';
+import {
+    Box,
+    Button,
+    FormControl,
+    InputLabel,
+    MenuItem,
+    Select,
+    TextField,
+    Typography,
+    type SelectChangeEvent,
+} from '@mui/material';
+import { useAppStore } from '../stores/appStore';
+import type { DeviceRole } from '../types';
 
-const API_URL = window.location.origin;
+const API_URL = globalThis.location.origin;
 
 export function AddDeviceForm() {
     const showSnackbar = useAppStore((state) => state.showSnackbar);
     const [name, setName] = useState('');
     const [role, setRole] = useState<DeviceRole>('SENSOR');
+
+    const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setName(event.target.value);
+    };
+
+    const handleRoleChange = (event: SelectChangeEvent) => {
+        setRole(event.target.value as DeviceRole);
+    };
 
     const handleSubmit = (event: React.FormEvent) => {
         event.preventDefault();
@@ -16,7 +34,7 @@ export function AddDeviceForm() {
         const newDevice = {
             name,
             type: 'VIRTUAL',
-            role
+            role,
         };
 
         fetch(`${API_URL}/api/devices`, {
@@ -24,26 +42,31 @@ export function AddDeviceForm() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(newDevice),
         })
-            .then(response => {
-                if (!response.ok) { throw new Error('Failed to create device'); }
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Failed to create device');
+                }
                 setName('');
                 setRole('SENSOR');
                 showSnackbar('Virtual device created successfully!', 'success');
             })
-            .catch(error => {
-                console.error('Error creating device:', error);
+            .catch(() => {
                 showSnackbar('Error creating device.', 'error');
             });
     };
 
     return (
-        <Box component="form" onSubmit={handleSubmit} sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box
+            component="form"
+            onSubmit={handleSubmit}
+            sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+        >
             <Typography variant="h6">Add Virtual Device</Typography>
             <TextField
                 label="Device Name"
                 variant="outlined"
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={handleNameChange}
                 required
                 fullWidth
             />
@@ -53,7 +76,7 @@ export function AddDeviceForm() {
                     labelId="role-select-label"
                     value={role}
                     label="Device Role"
-                    onChange={(e) => setRole(e.target.value as DeviceRole)}
+                    onChange={handleRoleChange}
                 >
                     <MenuItem value="SENSOR">Sensor</MenuItem>
                     <MenuItem value="ACTUATOR">Actuator</MenuItem>

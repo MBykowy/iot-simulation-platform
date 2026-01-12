@@ -6,7 +6,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public record RuleTrigger(
         String deviceId,
         String path,
-        String aggregate,
+        AggregateFunction aggregate,
         String field,
         String range,
         RuleOperator operator,

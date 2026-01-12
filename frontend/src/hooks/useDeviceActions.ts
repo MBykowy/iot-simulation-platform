@@ -1,14 +1,15 @@
-import {useAppStore} from '../stores/appStore';
-import {apiClient} from "../api/apiClient.ts";
-
+import { useAppStore } from '../stores/appStore';
+import { apiClient } from '../api/apiClient';
 
 export function useDeviceActions() {
     const removeDeviceFromStore = useAppStore((state) => state.removeDevice);
     const showSnackbar = useAppStore((state) => state.showSnackbar);
 
     const renameDevice = async (deviceId: string, currentName: string): Promise<boolean> => {
-        const newName = window.prompt("Enter new name:", currentName);
-        if (!newName || newName.trim() === "" || newName === currentName) return false;
+        const newName = globalThis.prompt('Enter new name:', currentName);
+        if (!newName || newName.trim() === '' || newName === currentName) {
+            return false;
+        }
 
         const result = await apiClient(`/api/devices/${deviceId}`, {
             method: 'PUT',
@@ -23,7 +24,9 @@ export function useDeviceActions() {
     };
 
     const deleteDevice = async (deviceId: string, deviceName: string): Promise<boolean> => {
-        if (!window.confirm(`Are you sure you want to delete ${deviceName}?`)) return false;
+        if (!globalThis.confirm(`Are you sure you want to delete ${deviceName}?`)) {
+            return false;
+        }
 
         const result = await apiClient(`/api/devices/${deviceId}`, { method: 'DELETE' });
 

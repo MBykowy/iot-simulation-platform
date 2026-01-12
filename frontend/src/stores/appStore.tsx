@@ -1,5 +1,5 @@
-import {create} from 'zustand';
-import type {Device} from '../types';
+import { create } from 'zustand';
+import type { Device } from '../types';
 
 const API_URL = '';
 
@@ -16,15 +16,14 @@ interface SnackbarState {
     severity: SnackbarSeverity;
 }
 
-
 export interface AppState {
-    //urządzenia
+    // devices
     devices: Device[];
     fetchDevices: () => Promise<void>;
     addOrUpdateDevice: (device: Device) => void;
     removeDevice: (deviceId: string) => void;
-    //wykres
 
+    // chart
     chartData: ChartDataPoint[];
     isChartLoading: boolean;
     activeChartDeviceId: string | null;
@@ -36,17 +35,18 @@ export interface AppState {
     liveUpdateCallback: ((device: Device) => void) | null;
     setLiveUpdateCallback: (callback: ((device: Device) => void) | null) => void;
 
-    //motyw
+    // theme
     themeMode: 'light' | 'dark';
     toggleThemeMode: () => void;
-    //Snakbar
+
+    // Snackbar
     snackbar: SnackbarState;
     showSnackbar: (message: string, severity: SnackbarSeverity) => void;
     hideSnackbar: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-    // urządzenia
+    // devices
     devices: [],
     selectedRange: '15m',
     liveUpdateCallback: null,
@@ -57,28 +57,37 @@ export const useAppStore = create<AppState>((set, get) => ({
     fetchDevices: async () => {
         try {
             const response = await fetch(`${API_URL}/api/devices`);
-            if (!response.ok) throw new Error('Failed to fetch devices');
+            if (!response.ok) {
+                throw new Error('Failed to fetch devices');
+            }
             const data = await response.json();
-            set({ devices: Array.isArray(data) ? data : [] });
-        } catch (error) { console.error('Error fetching devices:', error); }
+
+            let devicesList: Device[] = [];
+            if (Array.isArray(data)) {
+                devicesList = data;
+            }
+
+            set({ devices: devicesList });
+        } catch (error) {
+            console.error('Error fetching devices:', error);
+        }
     },
 
     addOrUpdateDevice: (device) => set((state) => {
-        const index = state.devices.findIndex(d => d.id === device.id);
+        const index = state.devices.findIndex((d) => d.id === device.id);
         if (index > -1) {
             const newDevices = [...state.devices];
             newDevices[index] = device;
             return { devices: newDevices };
-        } else {
-            return { devices: [...state.devices, device] };
         }
+        return { devices: [...state.devices, device] };
     }),
 
     removeDevice: (deviceId) => set((state) => ({
-        devices: state.devices.filter(d => d.id !== deviceId),
+        devices: state.devices.filter((d) => d.id !== deviceId),
     })),
 
-    // wykres
+    // chart
     chartData: [],
     isChartLoading: false,
     activeChartDeviceId: null,
@@ -94,11 +103,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     snackbar: { open: false, message: '', severity: 'info' },
     showSnackbar: (message, severity) => set({ snackbar: { open: true, message, severity } }),
-    hideSnackbar: () => set(state => ({ snackbar: { ...state.snackbar, open: false } })),
+    hideSnackbar: () => set((state) => ({ snackbar: { ...state.snackbar, open: false } })),
 
     themeMode: 'dark',
-    toggleThemeMode: () => set((state) => ({
-        themeMode: state.themeMode === 'light' ? 'dark' : 'light',
-    })),
+    toggleThemeMode: () => set((state) => {
+        let newMode: 'light' | 'dark' = 'light';
+        if (state.themeMode === 'light') {
+            newMode = 'dark';
+        }
+        return { themeMode: newMode };
+    }),
     clearChartData: () => set({ chartData: [], isChartLoading: false, activeChartDeviceId: null }),
 }));

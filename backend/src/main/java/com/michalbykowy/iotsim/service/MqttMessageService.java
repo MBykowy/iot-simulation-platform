@@ -10,6 +10,9 @@ import java.util.Map;
 public class MqttMessageService {
 
     private static final Logger logger = LoggerFactory.getLogger(MqttMessageService.class);
+
+    private static final int DEVICE_ID_TOPIC_INDEX = 2;
+
     private final DeviceService deviceService;
 
     public MqttMessageService(DeviceService deviceService) {
@@ -18,7 +21,8 @@ public class MqttMessageService {
 
     public void handleMessage(String topic, String payload) {
         try {
-            String deviceId = topic.split("/")[2];
+            // Parses deviceId from topic (e.g., "iot/devices/123/data" -> "123")
+            String deviceId = topic.split("/")[DEVICE_ID_TOPIC_INDEX];
 
             Map<String, Object> eventPayload = Map.of(
                     "deviceId", deviceId,

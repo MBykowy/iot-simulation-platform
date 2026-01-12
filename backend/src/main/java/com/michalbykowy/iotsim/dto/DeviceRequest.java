@@ -1,4 +1,4 @@
-package com.michalbykowy.iotsim.controller;
+package com.michalbykowy.iotsim.dto;
 
 import com.michalbykowy.iotsim.model.DeviceRole;
 import com.michalbykowy.iotsim.model.DeviceType;

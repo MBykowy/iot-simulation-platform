@@ -8,6 +8,7 @@ import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
 import com.influxdb.query.FluxRecord;
 import com.influxdb.query.FluxTable;
+import com.michalbykowy.iotsim.model.AggregateFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,20 +27,31 @@ public class TimeSeriesService {
     private final ObjectMapper objectMapper;
     private final String bucket;
 
-    public TimeSeriesService(InfluxDBClient influxDBClient, ObjectMapper objectMapper, @Value("${influxdb.bucket}") String bucket) {
+    public TimeSeriesService(
+            InfluxDBClient influxDBClient,
+            ObjectMapper objectMapper,
+            @Value("${influx.bucket}") String bucket) {
         this.influxDBClient = influxDBClient;
         this.objectMapper = objectMapper;
         this.bucket = bucket;
     }
 
+    private String sanitize(String input) {
+        if (input == null) return "";
+        if (!input.matches("^[a-zA-Z0-9_:-]+$")) {
+            throw new IllegalArgumentException("Invalid input: " + input + ". potential injection detected.");
+        }
+        return input;
+    }
+
     public List<Map<String, Object>> executeFluxQuery(String fluxQuery) {
-        logger.info("Executing Flux query:\n{}", fluxQuery);
+        logger.debug("Executing Flux query:\n{}", fluxQuery);
         try {
             List<FluxTable> tables = influxDBClient.getQueryApi().query(fluxQuery);
             List<Map<String, Object>> result = new ArrayList<>();
             for (FluxTable table : tables) {
-                for (FluxRecord record : table.getRecords()) {
-                    result.add(record.getValues());
+                for (FluxRecord fluxRecord : table.getRecords()) {
+                    result.add(fluxRecord.getValues());
                 }
             }
             return result;
@@ -50,85 +62,92 @@ public class TimeSeriesService {
     }
 
 
-    public Optional<Double> queryAggregate(String deviceId, String field, String range, String aggregateFunction) {
-        String fluxFunction = getSanitizedFluxFunction(aggregateFunction);
-        if (fluxFunction == null) return Optional.empty();
+    public Optional<Double> queryAggregate(String deviceId, String field, String range, AggregateFunction aggregateFunction) {
+        if (aggregateFunction == null) {
+            return Optional.empty();
+        }
+        String safeDeviceId = sanitize(deviceId);
+        String safeField = sanitize(field);
+        String safeRange = sanitize(range);
 
-        String fluxQuery = String.format(
-                "from(bucket: \"%s\")\n" +
-                        "  |> range(start: -%s)\n" +
-                        "  |> filter(fn: (r) => r._measurement == \"sensor_readings\")\n" +
-                        "  |> filter(fn: (r) => r.deviceId == \"%s\")\n" +
-                        "  |> filter(fn: (r) => r._field == \"%s\")\n" +
-                        "  |> %s()",
-                bucket, range, deviceId, field, fluxFunction);
+        String fluxQuery = String.format("""
+            from(bucket: "%s")
+              |> range(start: -%s)
+              |> filter(fn: (r) => r._measurement == "sensor_readings")
+              |> filter(fn: (r) => r.deviceId == "%s")
+              |> filter(fn: (r) => r._field == "%s")
+              |> %s()
+            """, bucket, safeRange, safeDeviceId, safeField, aggregateFunction.toFluxFunction());
 
         List<Map<String, Object>> result = executeFluxQuery(fluxQuery);
+
+        return extractAggregateResult(result);
+    }
+
+    private Optional<Double> extractAggregateResult(List<Map<String, Object>> result) {
         if (result.isEmpty()) {
             return Optional.empty();
         }
-        Object value = result.get(0).get("_value");
-        if (value instanceof Number) {
-            return Optional.of(((Number) value).doubleValue());
+        Object value = result.getFirst().get("_value");
+
+        if (value instanceof Number number) {
+            return Optional.of(number.doubleValue());
         }
         return Optional.empty();
     }
 
     public List<Map<String, Object>> readSensorData(String deviceId, String range) {
-        String fluxQuery = String.format(
-                "from(bucket: \"%s\")\n" +
-                        "  |> range(start: -%s)\n" +
-                        "  |> filter(fn: (r) => r._measurement == \"sensor_readings\")\n" +
-                        "  |> filter(fn: (r) => r.deviceId == \"%s\")\n" +
-                        "  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")",
-                bucket, range, deviceId);
+        String fluxQuery = String.format("""
+                from(bucket: "%s")
+                  |> range(start: -%s)
+                  |> filter(fn: (r) => r._measurement == "sensor_readings")
+                  |> filter(fn: (r) => r.deviceId == "%s")
+                  |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+                """, bucket, range, deviceId);
+
         return executeFluxQuery(fluxQuery);
     }
+
     public void writeSensorData(String deviceId, String payloadJson) {
         try {
             WriteApiBlocking writeApi = influxDBClient.getWriteApiBlocking();
             JsonNode rootNode = objectMapper.readTree(payloadJson);
             JsonNode sensorsNode = rootNode.path("sensors");
             if (sensorsNode.isMissingNode() || !sensorsNode.isObject()) {
-                logger.warn("INFLUXDB: 'sensors' object not found in payload for device {}", deviceId);
+                logger.debug("INFLUXDB: 'sensors' object not found in payload for device {}", deviceId);
                 return;
             }
-            Point point = Point.measurement("sensor_readings").addTag("deviceId", deviceId).time(Instant.now(), WritePrecision.NS);
-            sensorsNode.fields().forEachRemaining(entry -> {
+            Point point = Point.measurement("sensor_readings")
+                    .addTag("deviceId", deviceId).time(Instant.now(), WritePrecision.NS);
+
+            sensorsNode.fields().forEachRemaining((Map.Entry<String, JsonNode> entry) -> {
                 if (entry.getValue().isNumber()) {
                     point.addField(entry.getKey(), entry.getValue().asDouble());
                 }
             });
+
             if (point.hasFields()) {
                 writeApi.writePoint(point);
-                logger.info("INFLUXDB: Wrote data for device {}", deviceId);
+                logger.debug("INFLUXDB: Wrote data for device {}", deviceId);
             } else {
-                logger.warn("INFLUXDB: No numeric fields found in 'sensors' object for device {}", deviceId);
+                logger.debug("INFLUXDB: No numeric fields found in 'sensors' object for device {}", deviceId);
             }
         } catch (Exception e) {
             logger.error("INFLUXDB: Error writing to InfluxDB for device {}: {}", deviceId, e.getMessage());
         }
     }
 
-    private String getSanitizedFluxFunction(String functionName) {
-        return switch (functionName.toLowerCase()) {
-            case "mean", "max", "min", "sum" -> functionName.toLowerCase();
-            default -> {
-                logger.error("Unsupported aggregate function: {}", functionName);
-                yield null;
-            }
-        };
-    }
     public List<Map<String, Object>> readLogHistory(String range) {
-        String fluxQuery = String.format(
-                "from(bucket: \"%s\")\n" +
-                        "  |> range(start: -%s)\n" +
-                        "  |> filter(fn: (r) => r._measurement == \"system_logs\")\n" +
-                        "  |> pivot(rowKey:[\"_time\"], columnKey: [\"_field\"], valueColumn: \"_value\")\n" +
-                        "  |> sort(columns: [\"_time\"], desc: true)\n" +
-                        "  |> limit(n: 1000)\n" +
-                        "  |> sort(columns: [\"_time\"], desc: false)",
-                bucket, range);
+        String fluxQuery = String.format("""
+                from(bucket: "%s")
+                  |> range(start: -%s)
+                  |> filter(fn: (r) => r._measurement == "system_logs")
+                  |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+                  |> sort(columns: ["_time"], desc: true)
+                  |> limit(n: 1000)
+                  |> sort(columns: ["_time"], desc: false)
+                """, bucket, range);
+
         return executeFluxQuery(fluxQuery);
     }
 }

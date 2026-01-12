@@ -3,7 +3,7 @@ package com.michalbykowy.iotsim.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.michalbykowy.iotsim.api.exception.ResourceNotFoundException;
-import com.michalbykowy.iotsim.controller.RuleRequest;
+import com.michalbykowy.iotsim.dto.RuleRequest;
 import com.michalbykowy.iotsim.model.Rule;
 import com.michalbykowy.iotsim.repository.RuleRepository;
 import org.slf4j.Logger;

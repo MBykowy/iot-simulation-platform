@@ -22,6 +22,7 @@ services:
       - DOCKER_INFLUXDB_INIT_ORG=iot-project
       - DOCKER_INFLUXDB_INIT_BUCKET=device_data
       - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=SuperSafeToken
+      - DOCKER_INFLUXDB_INIT_RETENTION=7d
     restart: unless-stopped
 
   iot-backend:

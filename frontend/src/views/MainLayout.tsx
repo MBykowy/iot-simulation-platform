@@ -1,9 +1,23 @@
-import {useState} from 'react';
-import {Outlet} from 'react-router-dom';
-import {AppBar, Box, Drawer, IconButton, Toolbar, Typography, useMediaQuery, useTheme} from '@mui/material';
-import {Sidebar} from '../components/Sidebar';
-import {Brightness4, Brightness7, DeveloperBoard, Menu as MenuIcon} from "@mui/icons-material";
-import {useAppStore} from '../stores/appStore';
+import { useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import {
+    AppBar,
+    Box,
+    Drawer,
+    IconButton,
+    Toolbar,
+    Typography,
+    useMediaQuery,
+    useTheme,
+} from '@mui/material';
+import { Sidebar } from '../components/Sidebar';
+import {
+    Brightness4,
+    Brightness7,
+    DeveloperBoard,
+    Menu as MenuIcon,
+} from '@mui/icons-material';
+import { useAppStore } from '../stores/appStore';
 
 const DRAWER_WIDTH = 240;
 
@@ -25,6 +39,40 @@ export function MainLayout() {
         </div>
     );
 
+    let themeIcon: React.ReactNode;
+    if (themeMode === 'dark') {
+        themeIcon = <Brightness7 />;
+    } else {
+        themeIcon = <Brightness4 />;
+    }
+
+    let drawerComponent: React.ReactNode;
+    if (isMobile) {
+        drawerComponent = (
+            <Drawer
+                variant="temporary"
+                open={mobileOpen}
+                onClose={handleDrawerToggle}
+                ModalProps={{ keepMounted: true }}
+                sx={{ '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH } }}
+            >
+                {drawerContent}
+            </Drawer>
+        );
+    } else {
+        drawerComponent = (
+            <Drawer
+                variant="permanent"
+                sx={{ '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH } }}
+                open
+            >
+                {drawerContent}
+            </Drawer>
+        );
+    }
+
+
+
     return (
         <Box sx={{ display: 'flex', minHeight: '100vh', bgcolor: 'background.default' }}>
             <AppBar
@@ -35,7 +83,7 @@ export function MainLayout() {
                     background: 'rgba(22, 22, 22, 0.8)',
                     backdropFilter: 'blur(10px)',
                     borderBottom: 1,
-                    borderColor: 'divider'
+                    borderColor: 'divider',
                 }}
             >
                 <Toolbar>
@@ -53,7 +101,7 @@ export function MainLayout() {
                         IoT Platform
                     </Typography>
                     <IconButton sx={{ ml: 1 }} onClick={toggleThemeMode} color="inherit">
-                        {themeMode === 'dark' ? <Brightness7 /> : <Brightness4 />}
+                        {themeIcon}
                     </IconButton>
                 </Toolbar>
             </AppBar>
@@ -62,25 +110,7 @@ export function MainLayout() {
                 component="nav"
                 sx={{ width: { md: DRAWER_WIDTH }, flexShrink: { md: 0 } }}
             >
-                {isMobile ? (
-                    <Drawer
-                        variant="temporary"
-                        open={mobileOpen}
-                        onClose={handleDrawerToggle}
-                        ModalProps={{ keepMounted: true }}
-                        sx={{ '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH } }}
-                    >
-                        {drawerContent}
-                    </Drawer>
-                ) : (
-                    <Drawer
-                        variant="permanent"
-                        sx={{ '& .MuiDrawer-paper': { boxSizing: 'border-box', width: DRAWER_WIDTH } }}
-                        open
-                    >
-                        {drawerContent}
-                    </Drawer>
-                )}
+                {drawerComponent}
             </Box>
 
             <Box

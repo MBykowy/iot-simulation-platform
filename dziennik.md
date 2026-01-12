@@ -55,14 +55,14 @@
 ---
 * **2025-10-16:**
 
-*   **Zaimplementowano serce aplikacji – silnik reguł (`SimulationEngine`):**
+*   **Zaimplementowano serce aplikacji – silnik reguł (`SimulationService`):**
     *   **Backend:** Stworzono model danych `Rule` oraz repozytorium `RuleRepository` do przechowywania reguł w bazie danych SQLite.
-    *   **Backend:** Zbudowano serwis `SimulationEngine`, który zawiera logikę do:
+    *   **Backend:** Zbudowano serwis `SimulationService`, który zawiera logikę do:
         *   Wyszukiwania odpowiednich reguł na podstawie ID urządzenia, które wywołało zdarzenie.
         *   Parsowania konfiguracji reguł (trigger/action) zapisanych w formacie JSON.
         *   Sprawdzania warunków z użyciem biblioteki `JsonPath` do analizy stanu urządzenia.
         *   Wykonywania akcji, czyli modyfikacji stanu urządzenia docelowego.
-    *   **Backend:** Zintegrowano `SimulationEngine` z istniejącymi punktami wejścia zdarzeń (`POST /api/events` oraz `MqttMessageService`), co pozwala na przetwarzanie zarówno zdarzeń symulowanych, jak i pochodzących ze sprzętu.
+    *   **Backend:** Zintegrowano `SimulationService` z istniejącymi punktami wejścia zdarzeń (`POST /api/events` oraz `MqttMessageService`), co pozwala na przetwarzanie zarówno zdarzeń symulowanych, jak i pochodzących ze sprzętu.
 *   **Stworzono interfejs użytkownika do zarządzania automatyzacją:**
     *   **Backend:** Dodano endpointy `GET /api/rules` i `POST /api/rules`.
     *   **Frontend:** Zbudowano kompleksowy widok `AutomationView`, który wyświetla listę istniejących reguł oraz zawiera formularz `AddRuleForm` do tworzenia nowych.
@@ -72,14 +72,14 @@
 ---
 * **2025-10-16:**
 
-*   **Zaimplementowano serce aplikacji – silnik reguł (`SimulationEngine`):**
+*   **Zaimplementowano serce aplikacji – silnik reguł (`SimulationService`):**
     *   **Backend:** Stworzono model danych `Rule` oraz repozytorium `RuleRepository` do przechowywania reguł w bazie danych SQLite.
-    *   **Backend:** Zbudowano serwis `SimulationEngine`, który zawiera logikę do:
+    *   **Backend:** Zbudowano serwis `SimulationService`, który zawiera logikę do:
         *   Wyszukiwania odpowiednich reguł na podstawie ID urządzenia, które wywołało zdarzenie.
         *   Parsowania konfiguracji reguł (trigger/action) zapisanych w formacie JSON.
         *   Sprawdzania warunków z użyciem biblioteki `JsonPath` do analizy stanu urządzenia.
         *   Wykonywania akcji, czyli modyfikacji stanu urządzenia docelowego.
-    *   **Backend:** Zintegrowano `SimulationEngine` z istniejącymi punktami wejścia zdarzeń (`POST /api/events` oraz `MqttMessageService`), co pozwala na przetwarzanie zarówno zdarzeń symulowanych, jak i pochodzących ze sprzętu.
+    *   **Backend:** Zintegrowano `SimulationService` z istniejącymi punktami wejścia zdarzeń (`POST /api/events` oraz `MqttMessageService`), co pozwala na przetwarzanie zarówno zdarzeń symulowanych, jak i pochodzących ze sprzętu.
 *   **Stworzono interfejs użytkownika do zarządzania automatyzacją:**
     *   **Backend:** Dodano endpointy `GET /api/rules` i `POST /api/rules`.
     *   **Frontend:** Zbudowano kompleksowy widok `AutomationView`, który wyświetla listę istniejących reguł oraz zawiera formularz `AddRuleForm` do tworzenia nowych.
@@ -166,7 +166,7 @@
 **2025-11-28:**
 
 *   **Zaimplementowano reguły oparte na agregacjach czasowych:**
-    *   **Backend:** Rozszerzono `SimulationEngine` o zdolność do ewaluacji warunków opartych na danych historycznych. Wykorzystano do tego dedykowaną metodę w `TimeSeriesService`, która wykonuje zapytania agregujące (np. `mean`, `max`) w języku Flux do bazy InfluxDB.
+    *   **Backend:** Rozszerzono `SimulationService` o zdolność do ewaluacji warunków opartych na danych historycznych. Wykorzystano do tego dedykowaną metodę w `TimeSeriesService`, która wykonuje zapytania agregujące (np. `mean`, `max`) w języku Flux do bazy InfluxDB.
     *   **Frontend:** Zaktualizowano interfejs `AddRuleForm`, dodając opcję konfiguracji warunków opartych na oknie czasowym.
 *   **Wdrożono strumieniową przeglądarkę logów systemowych z persystencją:**
     *   **Backend:** Skonfigurowano niestandardowy appender Logbacka (`MultiTargetLogAppender`), który kieruje logi aplikacji do dwóch celów jednocześnie: strumieniuje je przez WebSocket na dedykowany temat oraz zapisuje w InfluxDB jako dane szeregów czasowych.
@@ -192,3 +192,24 @@
 *   **Optymalizacja Ładowania Danych:**
     *   Ograniczenie początkowego zapytania o historię logów do 1000 wpisów.
     *   Włączenie kompresji **GZIP** w kontenerze Nginx. (redukcja payloadu JSON z 10MB do <1MB)
+
+---
+
+**2025-12-05 (Testy i sprawdzanie Architektury):**
+
+*   **Wdrożono wielowarstwową strategię zapewnienia jakości (QA) dla Backendu:**
+    *   **Unit & Mutation Testing:** Zaimplementowano testy jednostkowe (JUnit 5, Mockito) oraz testy mutacyjne (**PITest**), osiągając wysoki wskaźnik siły testów (>80%). Potwierdzono odporność logiki biznesowej (`SimulationService`, `DeviceService`) na błędy logiczne.
+    *   **Integration Testing:** Wprowadzono testy integracyjne oparte na **Testcontainers**. Środowisko testowe dynamicznie uruchamia kontenery Dockerowe (InfluxDB, Mosquitto), weryfikując poprawność pełnego potoku danych (MQTT → Backend → Baza) w izolowanym środowisku.
+    *   **Architecture Enforcement:** Zastosowano **ArchUnit** do automatycznej weryfikacji reguł architektonicznych. Testy blokują naruszenia warstw (np. kontroler wołający repozytorium) oraz wymuszają wstrzykiwanie zależności przez konstruktor.
+*   **Wzmocniono bezpieczeństwo i stabilność systemu:**
+    *   **Security:** Wyeliminowano podatność na **Flux Injection** w serwisie `TimeSeriesService` poprzez implementację sanityzacji danych wejściowych przed wysłaniem zapytania do InfluxDB.
+    *   **Concurrency:** Przeprowadzono testy obciążeniowe (`CountDownLatch`), które wykryły i pozwoliły wyeliminować potencjalne wyścigi (Race Conditions) przy równoległym przetwarzaniu zdarzeń MQTT i symulacji.
+*   **Zrefaktoryzowano kod pod kątem "Czystej Architektury":**
+    *   Wyeliminowano wstrzykiwanie przez pola (`@Value` na polach) na rzecz **wstrzykiwania przez konstruktor**, co ułatwia testowanie i zapewnia niemutowalność komponentów.
+    *   Ujednolicono nazewnictwo kluczowych serwisów (zmiana `SimulationEngine` na `SimulationService`).
+    *   Naprawiono niespójności w konfiguracji środowiskowej (mapowanie zmiennych `influx.bucket` vs `influxdb.bucket`).
+*   **Uruchomiono testy warstwy Frontendowej:**
+    *   **Logic & Components:** Skonfigurowano **Vitest** oraz **React Testing Library** do weryfikacji logiki parsującej logi oraz formularzy (z obsługą specyfiki komponentów Material-UI).
+    *   **E2E:** Wdrożono **Playwright** do testów end-to-end, weryfikujących pełną ścieżkę krytyczną użytkownika (od utworzenia urządzenia na Dashboardzie po weryfikację jego obecności w systemie).
+
+---

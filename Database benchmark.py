@@ -3,6 +3,8 @@ import random
 import sqlite3
 import time
 from datetime import datetime, timedelta, timezone
+from typing import List, Dict, Any
+
 from influxdb_client import InfluxDBClient, Point
 from influxdb_client.client.write_api import SYNCHRONOUS
 
@@ -15,7 +17,8 @@ SQLITE_DB = "benchmark.db"
 NUM_SAMPLES = 10000
 
 
-def setup_sqlite():
+def setup_sqlite() -> None:
+    """Creates the SQLite database and schema for benchmarking."""
     if os.path.exists(SQLITE_DB):
         os.remove(SQLITE_DB)
     conn = sqlite3.connect(SQLITE_DB)
@@ -37,7 +40,8 @@ def setup_sqlite():
 
 
 # --- Zapis ---
-def benchmark_write_sqlite(data_points):
+def benchmark_write_sqlite(data_points: List[Dict[str, Any]]) -> float:
+    """Benchmarks the write performance of SQLite (Transactional Insert)."""
     print(f"--- [SQLite] Write {len(data_points)} records (Transactional) ---")
     setup_sqlite()
     conn = sqlite3.connect(SQLITE_DB)
@@ -55,7 +59,8 @@ def benchmark_write_sqlite(data_points):
     return end - start
 
 
-def benchmark_write_influx(data_points):
+def benchmark_write_influx(data_points: List[Dict[str, Any]]) -> float:
+    """Benchmarks the write performance of InfluxDB (Batch Insert)."""
     print(f"--- [InfluxDB] Write {len(data_points)} records (Batch) ---")
     client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
     write_api = client.write_api(write_options=SYNCHRONOUS)
@@ -70,9 +75,9 @@ def benchmark_write_influx(data_points):
         influx_points.append(point)
 
     start = time.time()
-    BATCH_SIZE = 1000
-    for i in range(0, len(influx_points), BATCH_SIZE):
-        batch = influx_points[i:i + BATCH_SIZE]
+    batch_size = 1000
+    for i in range(0, len(influx_points), batch_size):
+        batch = influx_points[i:i + batch_size]
         write_api.write(bucket=INFLUX_BUCKET, org=INFLUX_ORG, record=batch)
     end = time.time()
     client.close()
@@ -80,7 +85,8 @@ def benchmark_write_influx(data_points):
 
 
 # --- Odczyt (ostatni rekord) ---
-def read_single_sqlite():
+def read_single_sqlite() -> float:
+    """Benchmarks reading the last record for a specific device from SQLite."""
     conn = sqlite3.connect(SQLITE_DB)
     cursor = conn.cursor()
     start = time.time()
@@ -91,7 +97,8 @@ def read_single_sqlite():
     return end - start
 
 
-def read_single_influx():
+def read_single_influx() -> float:
+    """Benchmarks reading the last record for a specific device from InfluxDB."""
     client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
     query_api = client.query_api()
     start = time.time()
@@ -109,7 +116,8 @@ def read_single_influx():
 
 
 # --- Odczyt (ostatnie 100) ---
-def read_multi_sqlite():
+def read_multi_sqlite() -> float:
+    """Benchmarks reading the last 100 records for a specific device from SQLite."""
     conn = sqlite3.connect(SQLITE_DB)
     cursor = conn.cursor()
     start = time.time()
@@ -120,7 +128,8 @@ def read_multi_sqlite():
     return end - start
 
 
-def read_multi_influx():
+def read_multi_influx() -> float:
+    """Benchmarks reading the last 100 records for a specific device from InfluxDB."""
     client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
     query_api = client.query_api()
     start = time.time()
@@ -138,7 +147,8 @@ def read_multi_influx():
 
 
 # --- Odczyt (średnia) ---
-def read_agg_sqlite():
+def read_agg_sqlite() -> float:
+    """Benchmarks calculating the average temperature for a device using SQLite."""
     conn = sqlite3.connect(SQLITE_DB)
     cursor = conn.cursor()
     start = time.time()
@@ -149,7 +159,8 @@ def read_agg_sqlite():
     return end - start
 
 
-def read_agg_influx():
+def read_agg_influx() -> float:
+    """Benchmarks calculating the average temperature for a device using InfluxDB (Flux)."""
     client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
     query_api = client.query_api()
     start = time.time()
@@ -205,4 +216,4 @@ if __name__ == "__main__":
     print(f"{'Read Single':<20} | {t_single_sql:<10.4f} | {t_single_influx:<10.4f}")
     print(f"{'Read Multi (100)':<20} | {t_multi_sql:<10.4f} | {t_multi_influx:<10.4f}")
     print(f"{'Aggregation (Mean)':<20} | {t_agg_sql:<10.4f} | {t_agg_influx:<10.4f}")
-    print("="*40)
+    print("=" * 40)

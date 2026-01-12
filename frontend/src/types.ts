@@ -1,6 +1,7 @@
 export type DeviceType = 'VIRTUAL' | 'PHYSICAL';
 export type DeviceRole = 'SENSOR' | 'ACTUATOR';
 export type RuleOperator = 'EQUALS' | 'GREATER_THAN' | 'LESS_THAN';
+export type AggregateFunction = 'MEAN' | 'MAX' | 'MIN' | 'SUM' | 'COUNT';
 export type LogLevel = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
 
 export interface Device {
@@ -44,7 +45,13 @@ export interface SimulationFieldConfig {
     parameters: Record<string, number>;
 }
 
+export interface NetworkProfile {
+    latencyMs: number;
+    packetLossPercent: number;
+}
+
 export interface SimulationConfig {
     intervalMs: number;
     fields: Record<string, SimulationFieldConfig>;
+    networkProfile?: NetworkProfile;
 }

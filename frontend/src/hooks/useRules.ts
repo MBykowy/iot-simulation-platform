@@ -1,7 +1,7 @@
-import {useCallback, useEffect, useState} from 'react';
-import {useAppStore} from '../stores/appStore';
+import { useCallback, useEffect, useState } from 'react';
+import { useAppStore } from '../stores/appStore';
 
-const API_URL = import.meta.env.VITE_API_URL || window.location.origin;
+const API_URL = import.meta.env.VITE_API_URL || globalThis.location.origin;
 
 export interface Rule {
     id: string;
@@ -11,7 +11,7 @@ export interface Rule {
 }
 
 /**
- * hook do zarządzania regułami automatyzacji.
+ * Hook to manage automation rules.
  */
 export function useRules() {
     const [rules, setRules] = useState<Rule[]>([]);
@@ -22,12 +22,21 @@ export function useRules() {
         setIsLoading(true);
         try {
             const response = await fetch(`${API_URL}/api/rules`);
-            if (!response.ok) throw new Error('Failed to fetch rules');
-            const data = await response.json() as Rule[];
-            setRules(Array.isArray(data) ? data : []);
+            if (!response.ok) {
+                throw new Error('Failed to fetch rules');
+            }
+            const data = (await response.json()) as Rule[];
+
+            let validRules: Rule[] = [];
+            if (Array.isArray(data)) {
+                validRules = data;
+            }
+            setRules(validRules);
         } catch (err) {
-            console.error(err);
-            const message = err instanceof Error ? err.message : 'Could not fetch rules.';
+            let message = 'Could not fetch rules.';
+            if (err instanceof Error) {
+                message = err.message;
+            }
             showSnackbar(message, 'error');
             setRules([]);
         } finally {
@@ -36,25 +45,29 @@ export function useRules() {
     }, [showSnackbar]);
 
     useEffect(() => {
-        fetchRules();
+        void fetchRules().catch(console.error);
     }, [fetchRules]);
 
     const deleteRule = async (ruleId: string): Promise<boolean> => {
-        if (!window.confirm('Are you sure you want to delete this rule?')) {
+        if (!globalThis.confirm('Are you sure you want to delete this rule?')) {
             return false;
         }
 
         try {
-            const response = await fetch(`${API_URL}/api/rules/${ruleId}`, { method: 'DELETE' });
+            const response = await fetch(`${API_URL}/api/rules/${ruleId}`, {
+                method: 'DELETE',
+            });
             if (!response.ok) {
                 throw new Error('Failed to delete rule');
             }
-            setRules(prevRules => prevRules.filter(r => r.id !== ruleId));
+            setRules((prevRules) => prevRules.filter((r) => r.id !== ruleId));
             showSnackbar('Rule deleted successfully.', 'success');
             return true;
         } catch (err) {
-            console.error(err);
-            const message = err instanceof Error ? err.message : 'Could not delete rule.';
+            let message = 'Could not delete rule.';
+            if (err instanceof Error) {
+                message = err.message;
+            }
             showSnackbar(message, 'error');
             return false;
         }
@@ -64,6 +77,6 @@ export function useRules() {
         rules,
         isLoading,
         deleteRule,
-        refreshRules: fetchRules
+        refreshRules: fetchRules,
     };
 }

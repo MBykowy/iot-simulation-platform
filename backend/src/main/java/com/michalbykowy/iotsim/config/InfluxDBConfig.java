@@ -13,21 +13,24 @@ public class InfluxDBConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(InfluxDBConfig.class);
 
-    @Value("${influx.url}")
-    private String url;
+    private final String url;
+    private final String token;
+    private final String org;
+    private final String bucket;
 
-    @Value("${influx.token}")
-    private String token;
-
-    @Value("${influx.org}")
-    private String org;
-
-    @Value("${influx.bucket}")
-    private String bucket;
+    public InfluxDBConfig(
+            @Value("${influx.url}") String url,
+            @Value("${influx.token}") String token,
+            @Value("${influx.org}") String org,
+            @Value("${influx.bucket}") String bucket) {
+        this.url = url;
+        this.token = token;
+        this.org = org;
+        this.bucket = bucket;
+    }
 
     @Bean
     public InfluxDBClient influxDBClient() {
-
         logger.info("Initializing InfluxDB client. URL: {}, Org: {}, Bucket: {}", url, org, bucket);
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, bucket);
     }

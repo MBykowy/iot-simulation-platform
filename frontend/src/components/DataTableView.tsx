@@ -1,13 +1,20 @@
-import {Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow} from '@mui/material';
-import type {ChartDataPoint} from '../stores/appStore';
+import { Box, Paper, Table, TableBody, TableCell, TableContainer, TableHead, TableRow } from '@mui/material';
+import type { ChartDataPoint } from '../stores/appStore';
 
 interface DataTableViewProps {
-    chartData: ChartDataPoint[];
+    readonly chartData: ChartDataPoint[];
 }
 
 export function DataTableView({ chartData }: DataTableViewProps) {
+    const headers = Array.from(new Set(chartData.flatMap((row) => Object.keys(row))));
 
-    const headers = Array.from(new Set(chartData.flatMap(row => Object.keys(row))));
+    const renderCellContent = (header: string, row: ChartDataPoint) => {
+        const value = row[header];
+        if (header === 'time' && typeof value === 'number') {
+            return new Date(value).toLocaleString('en-GB');
+        }
+        return String(value ?? '');
+    };
 
     return (
         <Box sx={{ mt: 2, height: 450, overflow: 'hidden' }}>
@@ -15,23 +22,26 @@ export function DataTableView({ chartData }: DataTableViewProps) {
                 <Table stickyHeader size="small">
                     <TableHead>
                         <TableRow>
-                            {headers.map(header => (
-                                <TableCell key={header} sx={{ fontWeight: 'bold' }}>{header}</TableCell>
+                            {headers.map((header) => (
+                                <TableCell key={header} sx={{ fontWeight: 'bold' }}>
+                                    {header}
+                                </TableCell>
                             ))}
                         </TableRow>
                     </TableHead>
                     <TableBody>
-                        {chartData.slice().reverse().map((row, index) => (
-                            <TableRow key={index}>
-                                {headers.map(header => (
-                                    <TableCell key={header}>
-                                        {header === 'time'
-                                            ? new Date(row[header] as number).toLocaleString('en-GB')
-                                            : String(row[header] ?? '')}
-                                    </TableCell>
-                                ))}
-                            </TableRow>
-                        ))}
+                        {chartData
+                            .slice()
+                            .reverse()
+                            .map((row) => (
+                                <TableRow key={row.time}>
+                                    {headers.map((header) => (
+                                        <TableCell key={`${row.time}-${header}`}>
+                                            {renderCellContent(header, row)}
+                                        </TableCell>
+                                    ))}
+                                </TableRow>
+                            ))}
                     </TableBody>
                 </Table>
             </TableContainer>

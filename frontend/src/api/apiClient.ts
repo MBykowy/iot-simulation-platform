@@ -1,47 +1,60 @@
-import {useAppStore} from '../stores/appStore';
+import { useAppStore } from '../stores/appStore';
 
-const API_URL = import.meta.env.VITE_API_URL || window.location.origin;
+const API_URL = import.meta.env.VITE_API_URL || globalThis.location.origin;
+const HTTP_NO_CONTENT = 204;
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 interface RequestOptions {
     method: HttpMethod;
     headers?: Record<string, string>;
-    body?: any;
+    body?: unknown;
 }
 
 /**
- * klient API, który obsługuje wywołania fetch,
- * parsowanie odpowiedzi i obsługę błędów przez Snackbar.
+ * Client API handling fetch calls, response parsing,
+ * and error handling via Snackbar.
  */
 export async function apiClient<T>(endpoint: string, options: RequestOptions): Promise<T | null> {
     const { showSnackbar } = useAppStore.getState();
 
     try {
+        let requestBody: string | null = null;
+        if (options.body) {
+            requestBody = JSON.stringify(options.body);
+        }
+
         const response = await fetch(`${API_URL}${endpoint}`, {
             method: options.method,
             headers: {
                 'Content-Type': 'application/json',
                 ...options.headers,
             },
-            body: options.body ? JSON.stringify(options.body) : null,
+            body: requestBody,
         });
 
         if (!response.ok) {
-            const errorData = await response.json().catch(() => null);
-            const errorMessage = errorData?.message || `Request failed with status ${response.status}`;
+            const errorData = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+
+            let errorMessage = `Request failed with status ${response.status}`;
+            if (errorData && typeof errorData.message === 'string') {
+                errorMessage = errorData.message;
+            }
+
             throw new Error(errorMessage);
         }
 
-        if (response.status === 204) {
+        if (response.status === HTTP_NO_CONTENT) {
             return {} as T;
         }
 
-        return await response.json() as T;
+        return (await response.json()) as T;
 
     } catch (error) {
-        const message = error instanceof Error ? error.message : 'An unknown network error occurred.';
-        console.error(`API Client Error: ${message}`);
+        let message = 'An unknown network error occurred.';
+        if (error instanceof Error) {
+            message = error.message;
+        }
         showSnackbar(message, 'error');
         return null;
     }
