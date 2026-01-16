@@ -1,6 +1,6 @@
 import { Box, CircularProgress, CssBaseline, ThemeProvider, Typography } from '@mui/material';
 import { Route, Routes } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useWebSocketSubscription } from './contexts/WebSocketProvider';
 import { MainLayout } from './views/MainLayout';
 import { DashboardView } from './views/DashboardView';
@@ -12,47 +12,64 @@ import { GlobalSnackbar } from './components/GlobalSnackbar';
 import { LogsView } from './views/LogsView';
 import type { Device } from './types';
 
+const STORE_FLUSH_INTERVAL_MS = 100;
+
 function App() {
     const subscriptionManager = useWebSocketSubscription();
-    const { addOrUpdateDevice, appendChartData } = useAppStore();
+    const { updateDevicesBatch, appendChartData } = useAppStore();
     const [isSystemReady, setIsSystemReady] = useState(false);
 
+    //buffer MQTT
+    const pendingDeviceUpdates = useRef<Map<string, Device>>(new Map());
+
     const themeMode = useAppStore((state) => state.themeMode);
+    const theme = themeMode === 'light' ? lightTheme : darkTheme;
 
-    let theme = darkTheme;
-    if (themeMode === 'light') {
-        theme = lightTheme;
-    }
-
+    //incoming data handler
     useEffect(() => {
         const subscription = subscriptionManager?.subscribe('/topic/devices', (message) => {
+            if (!message.body) return;
             try {
                 const updatedDevice: Device = JSON.parse(message.body);
-                addOrUpdateDevice(updatedDevice);
+                //bypass store for performance
                 appendChartData(updatedDevice);
-            } catch (error) {
-                console.info('Failed to parse device update payload:', error);
+                pendingDeviceUpdates.current.set(updatedDevice.id, updatedDevice);
+            } catch {
             }
         });
         return () => subscription?.unsubscribe();
-    }, [subscriptionManager, addOrUpdateDevice, appendChartData]);
+    }, [subscriptionManager, appendChartData]);
 
+    // batch flusher
     useEffect(() => {
+        const intervalId = setInterval(() => {
+            if (pendingDeviceUpdates.current.size > 0) {
+                const updates = Array.from(pendingDeviceUpdates.current.values());
+                pendingDeviceUpdates.current.clear();
+                updateDevicesBatch(updates);
+            }
+        }, STORE_FLUSH_INTERVAL_MS);
+
+        return () => clearInterval(intervalId);
+    }, [updateDevicesBatch]);
+
+    // health check
+    useEffect(() => {
+        let isMounted = true;
         const checkHealth = async () => {
             try {
                 const res = await fetch('/api/health');
                 if (res.ok) {
-                    setIsSystemReady(true);
+                    if (isMounted) setIsSystemReady(true);
                 } else {
-                    setTimeout(() => void checkHealth().catch((e) => console.info(e)), 1000);
+                    if (isMounted) setTimeout(() => void checkHealth(), 1000);
                 }
-            } catch (error) {
-                console.info('Health check failed:', error);
-                setTimeout(() => void checkHealth().catch((e) => console.info(e)), 1000);
+            } catch {
+                if (isMounted) setTimeout(() => void checkHealth(), 1000);
             }
         };
-
-        void checkHealth().catch((e) => console.info(e));
+        void checkHealth();
+        return () => { isMounted = false; };
     }, []);
 
     if (!isSystemReady) {

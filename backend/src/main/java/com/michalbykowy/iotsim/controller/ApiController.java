@@ -46,7 +46,8 @@ public class ApiController {
                 device.getRole(),
                 device.getCurrentState(),
                 device.getSimulationConfig(),
-                device.isSimulationActive()
+                device.isSimulationActive(),
+                device.isOnline()
         );
     }
 
@@ -55,12 +56,13 @@ public class ApiController {
                 rule.getId(),
                 rule.getName(),
                 rule.getTriggerConfig(),
-                rule.getActionConfig()
+                rule.getActionConfig(),
+                rule.isActive()
         );
     }
 
     @PostMapping("/devices")
-    public ResponseEntity<DeviceResponse> createDevice(@RequestBody DeviceRequest deviceRequest) {
+    public ResponseEntity<DeviceResponse> createDevice(@Valid @RequestBody DeviceRequest deviceRequest) {
         Device savedDevice = deviceService.createDevice(deviceRequest);
         return new ResponseEntity<>(mapToDto(savedDevice), HttpStatus.CREATED);
     }
@@ -94,7 +96,7 @@ public class ApiController {
     }
 
     @PostMapping("/rules")
-    public ResponseEntity<RuleResponse> createRule(@RequestBody RuleRequest ruleRequest) throws JsonProcessingException {
+    public ResponseEntity<RuleResponse> createRule(@Valid @RequestBody RuleRequest ruleRequest) throws JsonProcessingException {
         Rule savedRule = ruleService.createRule(ruleRequest);
         return new ResponseEntity<>(mapToDto(savedRule), HttpStatus.CREATED);
     }
@@ -123,15 +125,22 @@ public class ApiController {
     @GetMapping("/devices/{deviceId}/history")
     public ResponseEntity<List<Map<String, Object>>> getDeviceHistory(
             @PathVariable String deviceId,
-            @RequestParam(defaultValue = "1h") String range) {
-        List<Map<String, Object>> history = timeSeriesService.readSensorData(deviceId, range);
+            @RequestParam(name = "start", defaultValue = "-1h") String start,
+            @RequestParam(name = "stop", required = false) String stop) {
+
+        String effectiveStart = start;
+        if (!start.startsWith("-") && !start.contains("T")) {
+            effectiveStart = "-" + start;
+        }
+
+        List<Map<String, Object>> history = timeSeriesService.readSensorData(deviceId, effectiveStart, stop);
         return ResponseEntity.ok(history);
     }
 
     @PutMapping("/devices/{deviceId}")
     public ResponseEntity<DeviceResponse> updateDevice(
             @PathVariable String deviceId,
-            @Valid @RequestBody UpdateDeviceRequest request) { // @Valid handles the check
+            @Valid @RequestBody UpdateDeviceRequest request) {
         Device updatedDevice = deviceService.updateDeviceName(deviceId, request.name());
         return ResponseEntity.ok(mapToDto(updatedDevice));
     }
@@ -146,7 +155,7 @@ public class ApiController {
             @PathVariable String deviceId,
             @RequestBody Map<String, Object> command) {
         deviceService.sendCommand(deviceId, command);
-        return ResponseEntity.ok().build();
+        return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/health")

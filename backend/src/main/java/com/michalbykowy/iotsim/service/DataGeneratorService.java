@@ -10,6 +10,7 @@ import com.michalbykowy.iotsim.model.SimulationPattern;
 import com.michalbykowy.iotsim.repository.DeviceRepository;
 import com.michalbykowy.iotsim.service.generator.GeneratorStrategy;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.TaskScheduler;
@@ -22,7 +23,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.stream.Collectors;
 
 @Service
 @EnableScheduling
@@ -37,8 +42,11 @@ public class DataGeneratorService {
     private final Map<String, Long> lastUpdateTimestamps;
     private final Map<SimulationPattern, GeneratorStrategy> strategies;
 
-    // TaskScheduler for non-blocking latency sim
+    // TaskScheduler for delayed events
     private final TaskScheduler taskScheduler;
+
+    // Executor for parallel simulation ticks
+    private final ExecutorService executorService;
     private final Random random = new Random();
 
     public DataGeneratorService(
@@ -54,6 +62,9 @@ public class DataGeneratorService {
         this.strategies = new HashMap<>();
         this.taskScheduler = taskScheduler;
 
+        // Java 21 Virtual Threads: Lightweight threads perfect for I/O bound tasks (DB, Network)
+        this.executorService = Executors.newVirtualThreadPerTaskExecutor();
+
         strategyBeans.forEach((name, strategy) ->
                 strategies.put(SimulationPattern.valueOf(name.toUpperCase()), strategy));
     }
@@ -63,19 +74,34 @@ public class DataGeneratorService {
         logger.info("DataGeneratorService initialized. Strategies: {}", strategies.keySet());
     }
 
+    @PreDestroy
+    public void destroy() {
+        // Clean shutdown of the executor
+        executorService.close();
+    }
+
     @Scheduled(fixedRate = 500)
     public void generateDataTick() {
         List<Device> activeSimulations = deviceRepository.findBySimulationActive(true);
+
+        // Cleanup stale entries
+        Set<String> activeIds = activeSimulations.stream()
+                .map(Device::getId)
+                .collect(Collectors.toSet());
+        lastUpdateTimestamps.keySet().retainAll(activeIds);
+
         if (activeSimulations.isEmpty()) return;
 
         long currentTime = System.currentTimeMillis();
 
         for (Device device : activeSimulations) {
-            try {
-                processDeviceTick(device, currentTime);
-            } catch (Exception e) {
-                logger.error("Error processing simulation for device {}: {}", device.getId(), e.getMessage());
-            }
+            executorService.submit(() -> {
+                try {
+                    processDeviceTick(device, currentTime);
+                } catch (Exception e) {
+                    logger.error("Error processing simulation for device {}: {}", device.getId(), e.getMessage());
+                }
+            });
         }
     }
 
@@ -105,6 +131,7 @@ public class DataGeneratorService {
                 }
             }
 
+            // Standard
             deviceService.handleDeviceEvent(Map.of("deviceId", device.getId(), "state", newState));
         }
     }

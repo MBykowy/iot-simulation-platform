@@ -12,8 +12,8 @@ import {
     TextField,
     Typography,
 } from '@mui/material';
-
-const API_URL = '';
+import { apiClient } from '../api/apiClient';
+import { useAppStore } from '../stores/appStore';
 
 interface EventSimulatorFormProps {
     readonly devices: Device[];
@@ -23,6 +23,7 @@ export function EventSimulatorForm({ devices }: EventSimulatorFormProps) {
     const [selectedDeviceId, setSelectedDeviceId] = useState('');
     const [newStateJson, setNewStateJson] = useState('{}');
     const [error, setError] = useState('');
+    const showSnackbar = useAppStore((state) => state.showSnackbar);
 
     useEffect(() => {
         const isSelectedDevicePresent = devices.some((d) => d.id === selectedDeviceId);
@@ -39,7 +40,7 @@ export function EventSimulatorForm({ devices }: EventSimulatorFormProps) {
         setNewStateJson(event.target.value);
     };
 
-    const handleSubmit = (event: FormEvent) => {
+    const handleSubmit = async (event: FormEvent) => {
         event.preventDefault();
         setError('');
 
@@ -55,23 +56,17 @@ export function EventSimulatorForm({ devices }: EventSimulatorFormProps) {
             state: newStateJson,
         };
 
-        fetch(`${API_URL}/api/events`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(eventPayload),
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error('Failed to send event');
-                }
-            })
-            .catch((err) => {
-                if (err instanceof Error) {
-                    setError(err.message);
-                } else {
-                    setError('An unknown error occurred');
-                }
+        try {
+            await apiClient('/api/events', {
+                method: 'POST',
+                body: eventPayload,
             });
+            showSnackbar('Event simulated successfully', 'success');
+        } catch (err) {
+            if (err instanceof Error) {
+                setError(err.message);
+            }
+        }
     };
 
     let content: React.ReactNode;
@@ -123,7 +118,7 @@ export function EventSimulatorForm({ devices }: EventSimulatorFormProps) {
     return (
         <Box
             component="form"
-            onSubmit={handleSubmit}
+            onSubmit={(e) => void handleSubmit(e)}
             sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
         >
             <Typography variant="h6">Event Simulator</Typography>

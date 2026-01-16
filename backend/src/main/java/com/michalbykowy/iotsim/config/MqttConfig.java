@@ -91,6 +91,7 @@ public class MqttConfig {
                 new MqttPahoMessageHandler(clientId + "_outbound", mqttClientFactory());
         messageHandler.setAsync(true);
         messageHandler.setDefaultTopic("iot/commands");
+        messageHandler.setDefaultQos(1);
         return messageHandler;
     }
 }

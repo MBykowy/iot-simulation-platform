@@ -45,7 +45,7 @@ describe('useChart', () => {
     it('should handle live updates via appendDataPoint', async () => {
         const { result } = renderHook(() => useChart('device-123'));
 
-        // Wait for initial fetch
+        // wait for initial fetch
         await waitFor(() => expect(result.current.isLoading).toBe(false));
 
         expect(result.current.chartData).toEqual([]);

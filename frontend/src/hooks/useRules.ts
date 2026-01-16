@@ -8,6 +8,7 @@ export interface Rule {
     name: string;
     triggerConfig: string;
     actionConfig: string;
+    active: boolean;
 }
 
 /**

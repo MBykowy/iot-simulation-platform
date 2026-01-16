@@ -1,5 +1,5 @@
 import type { ChangeEvent } from 'react';
-import type { Device, AggregateFunction, RuleOperator } from '../types';
+import { type Device, AggregateFunction, RuleOperator } from '../types';
 import {
     Box,
     Button,
@@ -83,11 +83,11 @@ export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
                         onChange={handleTriggerAggregateChange}
                         disabled={isSubmitting}
                     >
-                        <MenuItem value="MEAN">Mean (Average)</MenuItem>
-                        <MenuItem value="MAX">Maximum</MenuItem>
-                        <MenuItem value="MIN">Minimum</MenuItem>
-                        <MenuItem value="SUM">Sum</MenuItem>
-                        <MenuItem value="COUNT">Count</MenuItem>
+                        <MenuItem value={AggregateFunction.MEAN}>Mean (Average)</MenuItem>
+                        <MenuItem value={AggregateFunction.MAX}>Maximum</MenuItem>
+                        <MenuItem value={AggregateFunction.MIN}>Minimum</MenuItem>
+                        <MenuItem value={AggregateFunction.SUM}>Sum</MenuItem>
+                        <MenuItem value={AggregateFunction.COUNT}>Count</MenuItem>
                     </Select>
                 </FormControl>
                 <TextField
@@ -201,9 +201,9 @@ export function AddRuleForm({ devices, onRuleAdded }: AddRuleFormProps) {
                                 onChange={handleTriggerOperatorChange}
                                 disabled={isSubmitting}
                             >
-                                <MenuItem value="EQUALS">EQUALS</MenuItem>
-                                <MenuItem value="GREATER_THAN">GREATER_THAN</MenuItem>
-                                <MenuItem value="LESS_THAN">LESS_THAN</MenuItem>
+                                <MenuItem value={RuleOperator.EQUALS}>EQUALS</MenuItem>
+                                <MenuItem value={RuleOperator.GREATER_THAN}>GREATER_THAN</MenuItem>
+                                <MenuItem value={RuleOperator.LESS_THAN}>LESS_THAN</MenuItem>
                             </Select>
                         </FormControl>
                         <TextField

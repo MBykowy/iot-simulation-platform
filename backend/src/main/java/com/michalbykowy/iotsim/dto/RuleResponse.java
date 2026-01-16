@@ -4,5 +4,6 @@ public record RuleResponse(
         String id,
         String name,
         String triggerConfig,
-        String actionConfig
+        String actionConfig,
+        boolean active
 ) {}

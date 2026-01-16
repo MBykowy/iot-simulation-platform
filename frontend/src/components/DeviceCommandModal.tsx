@@ -40,9 +40,8 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
     const [customJson, setCustomJson] = useState('{"status": "ON"}');
     const showSnackbar = useAppStore((state) => state.showSnackbar);
 
-
     const handleSend = async () => {
-        if (!device) {return;}
+        if (!device) { return; }
 
         let payload: Record<string, unknown>;
 
@@ -50,20 +49,21 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
             if (commandType === 'PRESET') {
                 payload = { status: presetAction };
             } else {
-                payload = JSON.parse(customJson);
+                payload = JSON.parse(customJson) as Record<string, unknown>;
             }
         } catch {
-            showSnackbar('Invalid JSON format', 'error');
+            showSnackbar('Invalid JSON format in custom command', 'error');
             return;
         }
 
-        const result = await apiClient(`/api/devices/${device.id}/command`, {
+        // apiClient handles the error snackbar if the backend returns 4xx/5xx
+        const result = await apiClient<void>(`/api/devices/${device.id}/command`, {
             method: 'POST',
             body: payload,
         });
 
         if (result !== null) {
-            showSnackbar(`Command sent to ${device.name}`, 'success');
+            showSnackbar(`Command sent successfully to ${device.name}`, 'success');
             onClose();
         }
     };
@@ -72,7 +72,7 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
         <Modal open={open} onClose={onClose}>
             <Box sx={style}>
                 <Typography variant="h6" gutterBottom>
-                    Send Command: {device?.name}
+                    Control Device: {device?.name}
                 </Typography>
 
                 <Box sx={{ mb: 2, display: 'flex', gap: 1 }}>
@@ -81,14 +81,14 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
                         onClick={() => setCommandType('PRESET')}
                         size="small"
                     >
-                        Simple
+                        Preset
                     </Button>
                     <Button
                         variant={commandType === 'JSON' ? 'contained' : 'outlined'}
                         onClick={() => setCommandType('JSON')}
                         size="small"
                     >
-                        Advanced (JSON)
+                        JSON
                     </Button>
                 </Box>
 
@@ -100,8 +100,8 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
                             label="Action"
                             onChange={(e: SelectChangeEvent) => setPresetAction(e.target.value)}
                         >
-                            <MenuItem value="ON">Turn ON</MenuItem>
-                            <MenuItem value="OFF">Turn OFF</MenuItem>
+                            <MenuItem value="ON">ON</MenuItem>
+                            <MenuItem value="OFF">OFF</MenuItem>
                             <MenuItem value="RESET">RESET</MenuItem>
                         </Select>
                     </FormControl>
@@ -110,7 +110,7 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
                         fullWidth
                         multiline
                         rows={4}
-                        label="JSON Payload"
+                        label="Command Payload"
                         value={customJson}
                         onChange={(e) => setCustomJson(e.target.value)}
                         sx={{ mt: 1 }}
@@ -122,10 +122,10 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
                     variant="contained"
                     color="secondary"
                     startIcon={<SendIcon />}
-                    onClick={() => void handleSend()}
+                    onClick={() => { void handleSend(); }}
                     sx={{ mt: 3 }}
                 >
-                    Send Command
+                    Dispatch Command
                 </Button>
             </Box>
         </Modal>

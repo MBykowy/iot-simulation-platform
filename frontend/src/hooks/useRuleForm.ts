@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAppStore } from '../stores/appStore';
 import { apiClient } from '../api/apiClient';
-import type { AggregateFunction, RuleOperator } from '../types';
+import { AggregateFunction, RuleOperator } from '../types';
 
 interface RuleFormData {
     name: string;
@@ -24,8 +24,8 @@ const INITIAL_STATE: RuleFormData = {
     triggerPath: '$.temperature',
     triggerField: 'temperature',
     triggerRange: '5m',
-    triggerAggregate: 'MEAN',
-    triggerOperator: 'GREATER_THAN',
+    triggerAggregate: AggregateFunction.MEAN,
+    triggerOperator: RuleOperator.GREATER_THAN,
     triggerValue: '25',
     actionDeviceId: '',
     actionNewState: '{"status": "ON"}',
@@ -76,6 +76,7 @@ export function useRuleForm(onRuleAdded: () => void) {
                 path: formData.triggerPath,
                 operator: formData.triggerOperator,
                 value: formData.triggerValue,
+                field: formData.triggerPath
             };
         }
 
@@ -93,17 +94,23 @@ export function useRuleForm(onRuleAdded: () => void) {
             newState: newStateParsed,
         };
         const newRule = { name: formData.name, triggerConfig, actionConfig };
-        const result = await apiClient('/api/rules', {
-            method: 'POST',
-            body: newRule,
-        });
 
-        if (result) {
-            showSnackbar('Rule created successfully!', 'success');
-            setFormData(INITIAL_STATE);
-            onRuleAdded();
+        try {
+            const result = await apiClient('/api/rules', {
+                method: 'POST',
+                body: newRule,
+            });
+
+            if (result) {
+                showSnackbar('Rule created successfully!', 'success');
+                setFormData(INITIAL_STATE);
+                onRuleAdded();
+            }
+        } catch (e) {
+            // logged by apiclient
+        } finally {
+            setIsSubmitting(false);
         }
-        setIsSubmitting(false);
     };
 
     return {

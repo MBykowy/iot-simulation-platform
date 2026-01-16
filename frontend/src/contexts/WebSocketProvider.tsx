@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import React, {
     createContext,
     useCallback,
@@ -39,27 +38,23 @@ export const WebSocketProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     const [isConnected, setIsConnected] = useState(false);
     const pendingSubscriptionsRef = useRef<Array<() => void>>([]);
 
-    clientRef.current ??= new Client({
-        brokerURL: WS_URL,
-        reconnectDelay: 5000,
-
-        heartbeatIncoming: 4000,
-        heartbeatOutgoing: 4000,
-
-        onConnect: () => {
-            setIsConnected(true);
-            pendingSubscriptionsRef.current.forEach((subscribeFunc) => {
-                subscribeFunc();
-            });
-            pendingSubscriptionsRef.current = [];
-        },
-        onWebSocketClose: () => {
-            setIsConnected(false);
-        },
-        onStompError: () => {
-            setIsConnected(false);
-        },
-    });
+    if (!clientRef.current) {
+        clientRef.current = new Client({
+            brokerURL: WS_URL,
+            reconnectDelay: 5000,
+            heartbeatIncoming: 4000,
+            heartbeatOutgoing: 4000,
+            onConnect: () => {
+                setIsConnected(true);
+                pendingSubscriptionsRef.current.forEach((subscribeFunc) => {
+                    subscribeFunc();
+                });
+                pendingSubscriptionsRef.current = [];
+            },
+            onWebSocketClose: () => setIsConnected(false),
+            onStompError: () => setIsConnected(false),
+        });
+    }
 
     useEffect(() => {
         const client = clientRef.current;

@@ -1,6 +1,7 @@
 package com.michalbykowy.iotsim.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.michalbykowy.iotsim.api.exception.ResourceNotFoundException;
 import com.michalbykowy.iotsim.dto.RuleRequest;
@@ -10,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.UUID;
 
@@ -25,6 +27,30 @@ public class RuleService {
         this.objectMapper = objectMapper;
     }
 
+    @PostConstruct
+    public void migrateRules() {
+        List<Rule> rules = ruleRepository.findAll();
+        boolean modified = false;
+        for (Rule rule : rules) {
+            if (rule.getTriggerDeviceId() == null && rule.getTriggerConfig() != null) {
+                try {
+                    JsonNode config = objectMapper.readTree(rule.getTriggerConfig());
+                    if (config.has("deviceId")) {
+                        rule.setTriggerDeviceId(config.get("deviceId").asText());
+                        ruleRepository.save(rule);
+                        modified = true;
+                        logger.info("Migrated rule {} with triggerDeviceId: {}", rule.getId(), rule.getTriggerDeviceId());
+                    }
+                } catch (JsonProcessingException e) {
+                    logger.error("Failed to migrate rule {}: Invalid JSON trigger config", rule.getId(), e);
+                }
+            }
+        }
+        if (modified) {
+            logger.info("Rule migration completed.");
+        }
+    }
+
     public List<Rule> getAllRules() {
         return ruleRepository.findAll();
     }
@@ -38,7 +64,8 @@ public class RuleService {
                 UUID.randomUUID().toString(),
                 ruleRequest.name(),
                 objectMapper.writeValueAsString(ruleRequest.triggerConfig()),
-                objectMapper.writeValueAsString(ruleRequest.actionConfig())
+                objectMapper.writeValueAsString(ruleRequest.actionConfig()),
+                ruleRequest.triggerConfig().deviceId()
         );
         return ruleRepository.save(newRule);
     }

@@ -1,20 +1,24 @@
-import {useEffect} from 'react';
+import { useEffect, useState } from 'react';
 import {
     Box,
     Button,
     ButtonGroup,
     CircularProgress,
+    FormControlLabel,
     Modal,
+    Switch,
+    TextField,
     ToggleButton,
     ToggleButtonGroup,
     Typography,
+    Tooltip
 } from '@mui/material';
-import {TableRows as TableRowsIcon, Timeline as TimelineIcon} from '@mui/icons-material';
-import type {Device} from '../types';
-import {RealTimeChart} from './RealTimeChart';
-import {DataTableView} from './DataTableView';
-import {useChart} from '../hooks/useChart';
-import {useAppStore} from '../stores/appStore';
+import { TableRows as TableRowsIcon, Timeline as TimelineIcon, WarningAmber as WarningIcon } from '@mui/icons-material';
+import type { Device } from '../types';
+import { RealTimeChart } from './RealTimeChart';
+import { DataTableView } from './DataTableView';
+import { useChart } from '../hooks/useChart';
+import { useAppStore } from '../stores/appStore';
 
 const modalPosition = 'absolute' as const;
 
@@ -34,32 +38,26 @@ const style = {
 
 const timeRanges = ['1m', '15m', '30m', '1h', '6h', '12h', '24h', '7d'];
 
-
 interface TimeRangeButtonProps {
     readonly range: string;
     readonly selectedRange: string;
     readonly onRangeChange: (range: string) => void;
 }
 
-function TimeRangeButton({range, selectedRange, onRangeChange}: TimeRangeButtonProps) {
+function TimeRangeButton({ range, selectedRange, onRangeChange }: TimeRangeButtonProps) {
     const handleClick = () => {
         onRangeChange(range);
     };
 
-    let variant: 'contained' | 'outlined';
-    if (selectedRange === range) {
-        variant = 'contained';
-    } else {
-        variant = 'outlined';
-    }
-
     return (
-        <Button variant={variant} onClick={handleClick}>
+        <Button
+            variant={selectedRange === range ? 'contained' : 'outlined'}
+            onClick={handleClick}
+        >
             {range}
         </Button>
     );
 }
-
 
 interface DeviceHistoryModalProps {
     readonly device: Device | null;
@@ -67,8 +65,10 @@ interface DeviceHistoryModalProps {
     readonly onClose: () => void;
 }
 
-export function DeviceHistoryModal({device, open, onClose}: DeviceHistoryModalProps) {
-    // Removing ternary operator
+export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModalProps) {
+    const [startTime, setStartTime] = useState<string>('');
+    const [endTime, setEndTime] = useState<string>('');
+
     let chartDeviceId: string | null = null;
     if (open && device) {
         chartDeviceId = device.id;
@@ -76,10 +76,13 @@ export function DeviceHistoryModal({device, open, onClose}: DeviceHistoryModalPr
 
     const {
         chartData,
+        totalPoints,
         isLoading,
         viewMode,
         setViewMode,
         selectedRange,
+        isOptimized,
+        setIsOptimized,
         handleRangeChange,
         appendDataPoint,
     } = useChart(chartDeviceId);
@@ -90,11 +93,20 @@ export function DeviceHistoryModal({device, open, onClose}: DeviceHistoryModalPr
         if (open) {
             setLiveUpdateCallback(appendDataPoint);
         }
-
         return () => {
             setLiveUpdateCallback(null);
         };
     }, [open, appendDataPoint, setLiveUpdateCallback]);
+
+    const handleCustomQuery = () => {
+        if (startTime) {
+            let query = startTime;
+            if (endTime) {
+                query += `&stop=${endTime}`;
+            }
+            handleRangeChange(query);
+        }
+    };
 
     const handleViewModeChange = (
         _event: React.MouseEvent<HTMLElement>,
@@ -105,22 +117,34 @@ export function DeviceHistoryModal({device, open, onClose}: DeviceHistoryModalPr
         }
     };
 
+    const handleDateChange = (setter: (val: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (e.target.value) {
+            setter(new Date(e.target.value).toISOString());
+        } else {
+            setter('');
+        }
+    };
+
+    const handleOptimizationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setIsOptimized(event.target.checked);
+    };
+
     let content: React.ReactNode;
     if (isLoading) {
         content = (
-            <Box sx={{height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
-                <CircularProgress/>
+            <Box sx={{ height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <CircularProgress />
             </Box>
         );
     } else if (chartData.length > 0) {
         if (viewMode === 'chart') {
-            content = <RealTimeChart chartData={chartData} selectedRange={selectedRange}/>;
+            content = <RealTimeChart chartData={chartData} selectedRange={selectedRange} />;
         } else {
-            content = <DataTableView chartData={chartData}/>;
+            content = <DataTableView chartData={chartData} />;
         }
     } else {
         content = (
-            <Box sx={{height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+            <Box sx={{ height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <Typography color="text.secondary">
                     No data available for the selected time range.
                 </Typography>
@@ -128,44 +152,98 @@ export function DeviceHistoryModal({device, open, onClose}: DeviceHistoryModalPr
         );
     }
 
+    const showWarning = !isOptimized && totalPoints > 2000;
+
     return (
         <Modal open={open} onClose={onClose}>
             <Box sx={style}>
                 <Box sx={{
                     display: 'flex',
                     justifyContent: 'space-between',
-                    alignItems: 'center',
+                    alignItems: 'flex-start',
                     mb: 2,
                     flexWrap: 'wrap',
                     gap: 2
                 }}>
-                    <Typography variant="h6" component="h2">
-                        History for {device?.name}
-                    </Typography>
-                    <Box sx={{display: 'flex', gap: 2, alignItems: 'center'}}>
-                        <ToggleButtonGroup
-                            value={viewMode}
-                            exclusive
-                            onChange={handleViewModeChange}
-                            size="small"
-                        >
-                            <ToggleButton value="chart" aria-label="chart view">
-                                <TimelineIcon/>
-                            </ToggleButton>
-                            <ToggleButton value="table" aria-label="table view">
-                                <TableRowsIcon/>
-                            </ToggleButton>
-                        </ToggleButtonGroup>
-                        <ButtonGroup variant="outlined" size="small">
-                            {timeRanges.map((range) => (
-                                <TimeRangeButton
-                                    key={range}
-                                    range={range}
-                                    selectedRange={selectedRange}
-                                    onRangeChange={handleRangeChange}
-                                />
-                            ))}
-                        </ButtonGroup>
+                    <Box>
+                        <Typography variant="h6" component="h2" sx={{ mt: 1 }}>
+                            History for {device?.name}
+                        </Typography>
+
+                        {/* Data Points Stats */}
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
+                            <Typography variant="caption" color="text.secondary">
+                                Displaying {chartData.length} of {totalPoints} points
+                            </Typography>
+
+                            {/* Optimization Toggle */}
+                            <FormControlLabel
+                                control={
+                                    <Switch
+                                        checked={isOptimized}
+                                        onChange={handleOptimizationChange}
+                                        size="small"
+                                        color="primary"
+                                    />
+                                }
+                                label={<Typography variant="caption">Optimize</Typography>}
+                                sx={{ ml: 1, mr: 0 }}
+                            />
+
+                            {showWarning && (
+                                <Tooltip title="High point count may cause lag">
+                                    <WarningIcon color="warning" fontSize="small" />
+                                </Tooltip>
+                            )}
+                        </Box>
+                    </Box>
+
+                    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 1.5 }}>
+                        <Box sx={{ display: 'flex', gap: 2, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                            <ToggleButtonGroup
+                                value={viewMode}
+                                exclusive
+                                onChange={handleViewModeChange}
+                                size="small"
+                            >
+                                <ToggleButton value="chart" aria-label="chart view">
+                                    <TimelineIcon />
+                                </ToggleButton>
+                                <ToggleButton value="table" aria-label="table view">
+                                    <TableRowsIcon />
+                                </ToggleButton>
+                            </ToggleButtonGroup>
+                            <ButtonGroup variant="outlined" size="small">
+                                {timeRanges.map((range) => (
+                                    <TimeRangeButton
+                                        key={range}
+                                        range={range}
+                                        selectedRange={selectedRange}
+                                        onRangeChange={handleRangeChange}
+                                    />
+                                ))}
+                            </ButtonGroup>
+                        </Box>
+
+                        <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                            <TextField
+                                label="Start"
+                                type="datetime-local"
+                                size="small"
+                                InputLabelProps={{ shrink: true }}
+                                onChange={handleDateChange(setStartTime)}
+                            />
+                            <TextField
+                                label="End"
+                                type="datetime-local"
+                                size="small"
+                                InputLabelProps={{ shrink: true }}
+                                onChange={handleDateChange(setEndTime)}
+                            />
+                            <Button onClick={handleCustomQuery} variant="contained" size="small">
+                                Filter
+                            </Button>
+                        </Box>
                     </Box>
                 </Box>
                 {content}

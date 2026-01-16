@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import type { Device, SimulationConfig, SimulationFieldConfig, SimulationPattern } from '../types';
+import { type Device, type SimulationConfig, type SimulationFieldConfig, SimulationPattern } from '../types';
 import {
     Box,
     Button, Divider,
@@ -51,19 +51,28 @@ interface SimulationConfigModalProps {
 export function SimulationConfigModal({ device, open, onClose }: SimulationConfigModalProps) {
     const [intervalMs, setIntervalMs] = useState(DEFAULT_INTERVAL_MS);
     const [fields, setFields] = useState<SimulationField[]>([]);
-
     const [latency, setLatency] = useState<number>(0);
     const [packetLoss, setPacketLoss] = useState<number>(0);
-
     const showSnackbar = useAppStore((state) => state.showSnackbar);
 
     useEffect(() => {
+        const loadDefaults = () => {
+            setFields([{
+                id: 0,
+                name: 'temperature',
+                pattern: SimulationPattern.SINE,
+                parameters: { amplitude: 5, period: 30, offset: 20 }
+            }]);
+            setIntervalMs(DEFAULT_INTERVAL_MS);
+            setLatency(0);
+            setPacketLoss(0);
+        };
+
         if (device?.simulationConfig) {
             try {
                 const config = JSON.parse(device.simulationConfig) as SimulationConfig;
                 setIntervalMs(config.intervalMs || DEFAULT_INTERVAL_MS);
 
-                // Load Network Profile
                 if (config.networkProfile) {
                     setLatency(config.networkProfile.latencyMs || 0);
                     setPacketLoss(config.networkProfile.packetLossPercent || 0);
@@ -81,60 +90,35 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
                     }),
                 );
                 setFields(loadedFields);
-            } catch {
-                // Ignore parse error
+            } catch (e) {
+                console.warn('[Config] Corrupted config detected:', e);
+                showSnackbar('Configuration corrupted. Resetting to defaults.', 'warning');
+                loadDefaults();
             }
         } else {
-            setFields([{ id: 0, name: 'temperature', pattern: 'SINE', parameters: { amplitude: 5, period: 30, offset: 20 } }]);
-            setIntervalMs(DEFAULT_INTERVAL_MS);
-            setLatency(0);
-            setPacketLoss(0);
+            loadDefaults();
         }
-    }, [device]);
-
+    }, [device, showSnackbar]);
 
     const updateFieldName = (prevFields: SimulationField[], id: number, newName: string) => {
-        return prevFields.map((f) => {
-            if (f.id === id) {
-                return { ...f, name: newName };
-            }
-            return f;
-        });
+        return prevFields.map((f) => f.id === id ? { ...f, name: newName } : f);
     };
 
-    const updateFieldPattern = (
-        prevFields: SimulationField[],
-        id: number,
-        newPattern: SimulationPattern,
-    ) => {
-        return prevFields.map((f) => {
-            if (f.id === id) {
-                return { ...f, pattern: newPattern };
-            }
-            return f;
-        });
+    const updateFieldPattern = (prevFields: SimulationField[], id: number, newPattern: SimulationPattern) => {
+        return prevFields.map((f) => f.id === id ? { ...f, pattern: newPattern } : f);
     };
 
-    const updateFieldParam = (
-        prevFields: SimulationField[],
-        id: number,
-        paramName: string,
-        value: number,
-    ) => {
+    const updateFieldParam = (prevFields: SimulationField[], id: number, paramName: string, value: number) => {
         return prevFields.map((f) => {
             if (f.id === id) {
                 return {
                     ...f,
-                    parameters: {
-                        ...f.parameters,
-                        [paramName]: value,
-                    },
+                    parameters: { ...f.parameters, [paramName]: value },
                 };
             }
             return f;
         });
     };
-
 
     const handleIntervalChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setIntervalMs(Number(event.target.value));
@@ -149,7 +133,7 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
     };
 
     const handleStart = async () => {
-        if (!device) {return;}
+        if (!device) return;
 
         const fieldsAsMap = fields.reduce((acc, field) => {
             if (field.name) {
@@ -174,7 +158,7 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
                 body: JSON.stringify(body),
             });
 
-            if (!response.ok) {throw new Error(`Error ${response.status}`);}
+            if (!response.ok) throw new Error(`Error ${response.status}`);
             onClose();
             showSnackbar('Simulation updated with network profile', 'success');
         } catch {
@@ -188,7 +172,7 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
             {
                 id: Date.now(),
                 name: '',
-                pattern: 'RANDOM',
+                pattern: SimulationPattern.RANDOM,
                 parameters: { min: 0, max: 100 },
             },
         ]);
@@ -198,10 +182,9 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
         setFields((prev) => prev.filter((f) => f.id !== id));
     };
 
-    const createUpdateNameHandler =
-        (id: number) => (event: React.ChangeEvent<HTMLInputElement>) => {
-            setFields((prev) => updateFieldName(prev, id, event.target.value));
-        };
+    const createUpdateNameHandler = (id: number) => (event: React.ChangeEvent<HTMLInputElement>) => {
+        setFields((prev) => updateFieldName(prev, id, event.target.value));
+    };
 
     const createUpdatePatternHandler = (id: number) => (event: SelectChangeEvent) => {
         setFields((prev) =>
@@ -209,87 +192,44 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
         );
     };
 
-    const createParamChangeHandler =
-        (id: number, paramName: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
-            let val = Number(event.target.value);
-
-            if (paramName === 'period' || paramName === 'latencyMs') {
-                val = Math.max(0, val);
-            }
-
-            setFields((prev) =>
-                updateFieldParam(prev, id, paramName, val),
-            );
-        };
-
+    const createParamChangeHandler = (id: number, paramName: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
+        let val = Number(event.target.value);
+        if (paramName === 'period' || paramName === 'latencyMs') {
+            val = Math.max(0, val);
+        }
+        setFields((prev) => updateFieldParam(prev, id, paramName, val));
+    };
 
     const handleStop = async () => {
-        if (!device) {
-            return;
-        }
+        if (!device) return;
         try {
             const response = await fetch(`${API_URL}/api/devices/${device.id}/simulation`, {
                 method: 'DELETE',
             });
-            if (!response.ok) {
-                throw new Error(`Error ${response.status}: Failed to stop simulation`);
-            }
+            if (!response.ok) throw new Error(`Error ${response.status}: Failed to stop simulation`);
             onClose();
             showSnackbar('Simulation stopped', 'info');
         } catch (error) {
-            let message = 'Unknown error occurred';
-            if (error instanceof Error) {
-                message = error.message;
-            }
+            const message = error instanceof Error ? error.message : 'Unknown error occurred';
             showSnackbar(message, 'error');
         }
     };
 
     const renderParams = (field: SimulationField) => {
-        if (field.pattern === 'SINE') {
+        if (field.pattern === SimulationPattern.SINE) {
             return (
                 <>
-                    <TextField
-                        size="small"
-                        label="Amplitude"
-                        type="number"
-                        value={field.parameters.amplitude || ''}
-                        onChange={createParamChangeHandler(field.id, 'amplitude')}
-                    />
-                    <TextField
-                        size="small"
-                        label="Period (s)"
-                        type="number"
-                        value={field.parameters.period || ''}
-                        onChange={createParamChangeHandler(field.id, 'period')}
-                    />
-                    <TextField
-                        size="small"
-                        label="Offset"
-                        type="number"
-                        value={field.parameters.offset || ''}
-                        onChange={createParamChangeHandler(field.id, 'offset')}
-                    />
+                    <TextField size="small" label="Amplitude" type="number" value={field.parameters.amplitude || ''} onChange={createParamChangeHandler(field.id, 'amplitude')} />
+                    <TextField size="small" label="Period (s)" type="number" value={field.parameters.period || ''} onChange={createParamChangeHandler(field.id, 'period')} />
+                    <TextField size="small" label="Offset" type="number" value={field.parameters.offset || ''} onChange={createParamChangeHandler(field.id, 'offset')} />
                 </>
             );
         }
-        if (field.pattern === 'RANDOM') {
+        if (field.pattern === SimulationPattern.RANDOM) {
             return (
                 <>
-                    <TextField
-                        size="small"
-                        label="Min Value"
-                        type="number"
-                        value={field.parameters.min || ''}
-                        onChange={createParamChangeHandler(field.id, 'min')}
-                    />
-                    <TextField
-                        size="small"
-                        label="Max Value"
-                        type="number"
-                        value={field.parameters.max || ''}
-                        onChange={createParamChangeHandler(field.id, 'max')}
-                    />
+                    <TextField size="small" label="Min Value" type="number" value={field.parameters.min || ''} onChange={createParamChangeHandler(field.id, 'min')} />
+                    <TextField size="small" label="Max Value" type="number" value={field.parameters.max || ''} onChange={createParamChangeHandler(field.id, 'max')} />
                 </>
             );
         }
@@ -304,132 +244,61 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
                 </Typography>
 
                 <Grid container spacing={3}>
-                    {/* General Settings */}
                     <Grid size={{ xs: 12, md: 4 }}>
-                        <TextField
-                            fullWidth
-                            label="Interval (ms)"
-                            type="number"
-                            value={intervalMs}
-                            onChange={handleIntervalChange}
-                            size="small"
-                        />
+                        <TextField fullWidth label="Interval (ms)" type="number" value={intervalMs} onChange={handleIntervalChange} size="small" />
                     </Grid>
 
-                    {/* Network Simulation Section */}
                     <Grid size={{ xs: 12 }}>
                         <Paper variant="outlined" sx={{ p: 2, bgcolor: 'rgba(0,0,0,0.02)' }}>
                             <Box sx={{ display: 'flex', alignItems: 'center', mb: 2, gap: 1 }}>
                                 <NetworkCheckIcon color="secondary" />
-                                <Typography variant="subtitle2" fontWeight="bold">
-                                    Network Conditions Simulation
-                                </Typography>
+                                <Typography variant="subtitle2" fontWeight="bold">Network Conditions Simulation</Typography>
                             </Box>
-
                             <Grid container spacing={3}>
                                 <Grid size={{ xs: 12, md: 6 }}>
-                                    <TextField
-                                        fullWidth
-                                        label="Added Latency (ms)"
-                                        type="number"
-                                        value={latency}
-                                        onChange={handleLatencyChange}
-                                        size="small"
-                                        helperText="Simulates network lag"
-                                    />
+                                    <TextField fullWidth label="Added Latency (ms)" type="number" value={latency} onChange={handleLatencyChange} size="small" helperText="Simulates network lag" />
                                 </Grid>
                                 <Grid size={{ xs: 12, md: 6 }}>
-                                    <Typography gutterBottom variant="caption">
-                                        Packet Loss: {packetLoss}%
-                                    </Typography>
-                                    <Slider
-                                        value={packetLoss}
-                                        onChange={handlePacketLossChange}
-                                        valueLabelDisplay="auto"
-                                        min={0}
-                                        max={50}
-                                        step={1}
-                                        color={packetLoss > 0 ? "error" : "primary"}
-                                    />
+                                    <Typography gutterBottom variant="caption">Packet Loss: {packetLoss}%</Typography>
+                                    <Slider value={packetLoss} onChange={handlePacketLossChange} valueLabelDisplay="auto" min={0} max={50} step={1} color={packetLoss > 0 ? "error" : "primary"} />
                                 </Grid>
                             </Grid>
                         </Paper>
                     </Grid>
 
                     <Grid size={{ xs: 12 }}>
-                        <Divider sx={{ my: 2 }}>
-                            <Typography variant="caption" color="text.secondary">DATA FIELDS</Typography>
-                        </Divider>
-
+                        <Divider sx={{ my: 2 }}><Typography variant="caption" color="text.secondary">DATA FIELDS</Typography></Divider>
                         {fields.map((field) => (
                             <Paper key={field.id} variant="outlined" sx={{ p: 2, mb: 2 }}>
                                 <Grid container spacing={2} alignItems="center">
                                     <Grid size={{ xs: 12, sm: 4 }}>
-                                        <TextField
-                                            fullWidth
-                                            size="small"
-                                            label="Field Name"
-                                            value={field.name}
-                                            onChange={createUpdateNameHandler(field.id)}
-                                        />
+                                        <TextField fullWidth size="small" label="Field Name" value={field.name} onChange={createUpdateNameHandler(field.id)} />
                                     </Grid>
                                     <Grid size={{ xs: 12, sm: 4 }}>
                                         <FormControl fullWidth size="small">
                                             <InputLabel>Pattern</InputLabel>
-                                            <Select
-                                                value={field.pattern}
-                                                label="Pattern"
-                                                onChange={createUpdatePatternHandler(field.id)}
-                                            >
-                                                <MenuItem value="SINE">Sine Wave</MenuItem>
-                                                <MenuItem value="RANDOM">Random</MenuItem>
+                                            <Select value={field.pattern} label="Pattern" onChange={createUpdatePatternHandler(field.id)}>
+                                                <MenuItem value={SimulationPattern.SINE}>Sine Wave</MenuItem>
+                                                <MenuItem value={SimulationPattern.RANDOM}>Random</MenuItem>
                                             </Select>
                                         </FormControl>
                                     </Grid>
                                     <Grid size={{ xs: 12, sm: 4 }} sx={{ textAlign: 'right' }}>
-                                        <IconButton
-                                            onClick={createRemoveFieldHandler(field.id)}
-                                            color="warning"
-                                        >
-                                            <DeleteIcon />
-                                        </IconButton>
+                                        <IconButton onClick={createRemoveFieldHandler(field.id)} color="warning"><DeleteIcon /></IconButton>
                                     </Grid>
                                     <Grid size={{ xs: 12 }}>
-                                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                                            {renderParams(field)}
-                                        </Box>
+                                        <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>{renderParams(field)}</Box>
                                     </Grid>
                                 </Grid>
                             </Paper>
                         ))}
-
-                        <Button startIcon={<AddCircleOutlineIcon />} onClick={addField} sx={{ mt: 1 }}>
-                            Add Field
-                        </Button>
+                        <Button startIcon={<AddCircleOutlineIcon />} onClick={addField} sx={{ mt: 1 }}>Add Field</Button>
                     </Grid>
                 </Grid>
 
-                <Box
-                    sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        mt: 3,
-                        pt: 2,
-                        borderTop: 1,
-                        borderColor: 'divider',
-                    }}
-                >
-                    <Button
-                        variant="contained"
-                        color="error"
-                        onClick={handleStop}
-                        disabled={!device?.simulationActive}
-                    >
-                        Stop Simulation
-                    </Button>
-                    <Button variant="contained" color="primary" onClick={handleStart}>
-                        Start / Update
-                    </Button>
+                <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+                    <Button variant="contained" color="error" onClick={handleStop} disabled={!device?.simulationActive}>Stop Simulation</Button>
+                    <Button variant="contained" color="primary" onClick={handleStart}>Start / Update</Button>
                 </Box>
             </Box>
         </Modal>

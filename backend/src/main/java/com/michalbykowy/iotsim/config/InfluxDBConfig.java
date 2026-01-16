@@ -2,6 +2,9 @@ package com.michalbykowy.iotsim.config;
 
 import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.InfluxDBClientFactory;
+import com.influxdb.client.WriteApi;
+import com.influxdb.client.WriteOptions;
+import jakarta.annotation.PreDestroy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -33,5 +36,18 @@ public class InfluxDBConfig {
     public InfluxDBClient influxDBClient() {
         logger.info("Initializing InfluxDB client. URL: {}, Org: {}, Bucket: {}", url, org, bucket);
         return InfluxDBClientFactory.create(url, token.toCharArray(), org, bucket);
+    }
+
+    @Bean
+    public WriteApi writeApi(InfluxDBClient influxDBClient) {
+        WriteOptions options = WriteOptions.builder()
+                .batchSize(1000)
+                .flushInterval(1000)
+                .bufferLimit(10000)
+                .jitterInterval(0)
+                .retryInterval(5000)
+                .build();
+
+        return influxDBClient.makeWriteApi(options);
     }
 }

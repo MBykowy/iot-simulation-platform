@@ -17,12 +17,12 @@ services:
       - ./docker/influxdb/data:/var/lib/influxdb2
     environment:
       - DOCKER_INFLUXDB_INIT_MODE=setup
-      - DOCKER_INFLUXDB_INIT_USERNAME=admin
-      - DOCKER_INFLUXDB_INIT_PASSWORD=password123
-      - DOCKER_INFLUXDB_INIT_ORG=iot-project
-      - DOCKER_INFLUXDB_INIT_BUCKET=device_data
-      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=SuperSafeToken
-      - DOCKER_INFLUXDB_INIT_RETENTION=7d
+      - DOCKER_INFLUXDB_INIT_USERNAME=${INFLUXDB_USERNAME}
+      - DOCKER_INFLUXDB_INIT_PASSWORD=${INFLUXDB_PASSWORD}
+      - DOCKER_INFLUXDB_INIT_ORG=${INFLUXDB_ORG}
+      - DOCKER_INFLUXDB_INIT_BUCKET=${INFLUXDB_BUCKET}
+      - DOCKER_INFLUXDB_INIT_ADMIN_TOKEN=${INFLUXDB_TOKEN}
+      - DOCKER_INFLUXDB_INIT_RETENTION=${INFLUXDB_RETENTION}
     restart: unless-stopped
 
   iot-backend:
@@ -35,13 +35,13 @@ services:
       - mosquitto
       - influxdb
     environment:
-      - SERVER_PORT=8081
+      - SERVER_PORT=${SERVER_PORT}
       - SPRING_DATASOURCE_URL=jdbc:sqlite:/data/iot_platform.db
       - MQTT_BROKER_URL=tcp://mosquitto:1883
       - INFLUXDB_URL=http://influxdb:8086
-      - INFLUXDB_TOKEN=SuperSafeToken
-      - INFLUXDB_ORG=iot-project
-      - INFLUXDB_BUCKET=device_data
+      - INFLUXDB_TOKEN=${INFLUXDB_TOKEN}
+      - INFLUXDB_ORG=${INFLUXDB_ORG}
+      - INFLUXDB_BUCKET=${INFLUXDB_BUCKET}
     volumes:
       - backend_data:/data
     restart: on-failure
@@ -52,13 +52,12 @@ services:
       retries: 5
       start_period: 30s
 
-
   iot-frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
     expose:
-      - "80" # dla Gatewaya
+      - "80"
     depends_on:
       iot-backend:
         condition: service_healthy

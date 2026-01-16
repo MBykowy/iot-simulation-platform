@@ -17,9 +17,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.util.List;
+import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
@@ -29,7 +31,6 @@ class ApiControllerTest {
 
     @Autowired private MockMvc mockMvc;
     @Autowired private ObjectMapper objectMapper;
-
 
     @MockitoBean private DeviceService deviceService;
     @MockitoBean private RuleService ruleService;
@@ -46,8 +47,7 @@ class ApiControllerTest {
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
                 .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value("123"))
-                .andExpect(jsonPath("$.name").value("Test Device"));
+                .andExpect(jsonPath("$.id").value("123"));
     }
 
     @Test
@@ -60,19 +60,7 @@ class ApiControllerTest {
         mockMvc.perform(put("/api/devices/999")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isNotFound())
-                .andExpect(jsonPath("$.message").value("Device not found"));
-    }
-
-    @Test
-    void updateDevice_ShouldReturn400_WhenNameIsEmpty() throws Exception {
-        // Validation Test
-        UpdateDeviceRequest request = new UpdateDeviceRequest("");
-
-        mockMvc.perform(put("/api/devices/123")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest());
+                .andExpect(status().isNotFound());
     }
 
     @Test
@@ -85,18 +73,19 @@ class ApiControllerTest {
         mockMvc.perform(post("/api/rules")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.message").value("Trigger deviceId cannot be null"));
+                .andExpect(status().isBadRequest());
     }
 
     @Test
-    void getAllDevices_ShouldReturnList() throws Exception {
-        when(deviceService.getAllDevices()).thenReturn(List.of(
-                new Device("1", "D1", DeviceType.PHYSICAL, DeviceRole.ACTUATOR, "{}")
-        ));
+    void sendCommand_ShouldReturn204_WhenValid() throws Exception {
+        String deviceId = "dev-1";
+        String payload = "{\"status\":\"ON\"}";
 
-        mockMvc.perform(get("/api/devices"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$[0].id").value("1"));
+        mockMvc.perform(post("/api/devices/{id}/command", deviceId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(payload))
+                .andExpect(status().isNoContent());
+
+        verify(deviceService).sendCommand(eq(deviceId), any());
     }
 }

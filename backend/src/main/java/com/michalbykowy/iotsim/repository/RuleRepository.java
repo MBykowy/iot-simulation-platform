@@ -12,14 +12,8 @@ import java.util.List;
 public interface RuleRepository extends JpaRepository<Rule, String> {
 
     /**
-     * Znajduje wszystkie reguły, w których konfiguracji wyzwalacza (triggerConfig)
-     * występuje podane ID urządzenia. Zapytanie wykorzystuje LIKE do przeszukiwania
-     * pola tekstowego przechowującego JSON.
-     *
-     * @param deviceId ID urządzenia, które może być wyzwalaczem.
-     * @return Lista pasujących reguł.
+     * Finds rules triggered by a specific device ID.
+     * Uses the dedicated 'triggerDeviceId' column for lookup.
      */
-    @Query("SELECT r FROM Rule r WHERE r.triggerConfig LIKE %:deviceId%")
-    List<Rule> findByTriggerDeviceId(@Param("deviceId") String deviceId);
-
+    List<Rule> findByTriggerDeviceId(String deviceId);
 }

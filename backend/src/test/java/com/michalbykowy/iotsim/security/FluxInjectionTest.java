@@ -2,6 +2,7 @@ package com.michalbykowy.iotsim.security;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.influxdb.client.InfluxDBClient;
+import com.influxdb.client.WriteApi; // NEW IMPORT
 import com.michalbykowy.iotsim.model.AggregateFunction;
 import com.michalbykowy.iotsim.service.TimeSeriesService;
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 class FluxInjectionTest {
 
     @Mock private InfluxDBClient influxDBClient;
+    @Mock private WriteApi writeApi;
     @Mock private ObjectMapper objectMapper;
 
     @InjectMocks

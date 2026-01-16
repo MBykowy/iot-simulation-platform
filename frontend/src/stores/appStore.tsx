@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import type { Device } from '../types';
-
-const API_URL = '';
+import { apiClient } from '../api/apiClient';
 
 export interface ChartDataPoint {
     time: number;
@@ -17,13 +16,14 @@ interface SnackbarState {
 }
 
 export interface AppState {
-    // devices
+    // Domain
     devices: Device[];
     fetchDevices: () => Promise<void>;
     addOrUpdateDevice: (device: Device) => void;
+    updateDevicesBatch: (updates: Device[]) => void;
     removeDevice: (deviceId: string) => void;
 
-    // chart
+    // Chart
     chartData: ChartDataPoint[];
     isChartLoading: boolean;
     activeChartDeviceId: string | null;
@@ -32,44 +32,33 @@ export interface AppState {
     clearChartData: () => void;
     selectedRange: string;
     setChartData: (data: ChartDataPoint[]) => void;
+
+    // Live
     liveUpdateCallback: ((device: Device) => void) | null;
     setLiveUpdateCallback: (callback: ((device: Device) => void) | null) => void;
 
-    // theme
+    // UI
     themeMode: 'light' | 'dark';
     toggleThemeMode: () => void;
-
-    // Snackbar
     snackbar: SnackbarState;
     showSnackbar: (message: string, severity: SnackbarSeverity) => void;
     hideSnackbar: () => void;
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
-    // devices
+    //  Devices
     devices: [],
-    selectedRange: '15m',
-    liveUpdateCallback: null,
-    setLiveUpdateCallback: (callback) => set({ liveUpdateCallback: callback }),
-
-    setChartData: (data) => set({ chartData: data }),
 
     fetchDevices: async () => {
         try {
-            const response = await fetch(`${API_URL}/api/devices`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch devices');
-            }
-            const data = await response.json();
-
-            let devicesList: Device[] = [];
+            const data = await apiClient<Device[]>('/api/devices', { method: 'GET' });
             if (Array.isArray(data)) {
-                devicesList = data;
+                set({ devices: data });
+            } else {
+                set({ devices: [] });
             }
-
-            set({ devices: devicesList });
-        } catch (error) {
-            console.error('Error fetching devices:', error);
+        } catch {
+            set({ devices: [] });
         }
     },
 
@@ -83,16 +72,50 @@ export const useAppStore = create<AppState>((set, get) => ({
         return { devices: [...state.devices, device] };
     }),
 
+    // batch update
+    updateDevicesBatch: (updates) => set((state) => {
+        if (updates.length === 0) return {};
+
+        const deviceMap = new Map(state.devices.map(d => [d.id, d]));
+        let hasChanges = false;
+
+        updates.forEach(device => {
+            const current = deviceMap.get(device.id);
+
+
+            if (!current ||
+                current.currentState !== device.currentState ||
+                current.simulationActive !== device.simulationActive ||
+                current.online !== device.online
+            ) {
+                deviceMap.set(device.id, device);
+                hasChanges = true;
+            }
+        });
+
+        if (!hasChanges) return {};
+
+        return { devices: Array.from(deviceMap.values()) };
+    }),
+
     removeDevice: (deviceId) => set((state) => ({
         devices: state.devices.filter((d) => d.id !== deviceId),
     })),
 
-    // chart
+    //  Chart
     chartData: [],
     isChartLoading: false,
     activeChartDeviceId: null,
+    selectedRange: '15m',
+    liveUpdateCallback: null,
 
     setActiveChartDevice: (deviceId) => set({ activeChartDeviceId: deviceId }),
+
+    setChartData: (data) => set({ chartData: data }),
+
+    clearChartData: () => set({ chartData: [], isChartLoading: false, activeChartDeviceId: null }),
+
+    setLiveUpdateCallback: (callback) => set({ liveUpdateCallback: callback }),
 
     appendChartData: (device) => {
         const callback = get().liveUpdateCallback;
@@ -101,17 +124,15 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
     },
 
+    //  UI
     snackbar: { open: false, message: '', severity: 'info' },
+
     showSnackbar: (message, severity) => set({ snackbar: { open: true, message, severity } }),
+
     hideSnackbar: () => set((state) => ({ snackbar: { ...state.snackbar, open: false } })),
 
     themeMode: 'dark',
-    toggleThemeMode: () => set((state) => {
-        let newMode: 'light' | 'dark' = 'light';
-        if (state.themeMode === 'light') {
-            newMode = 'dark';
-        }
-        return { themeMode: newMode };
-    }),
-    clearChartData: () => set({ chartData: [], isChartLoading: false, activeChartDeviceId: null }),
+    toggleThemeMode: () => set((state) => ({
+        themeMode: state.themeMode === 'light' ? 'dark' : 'light'
+    })),
 }));

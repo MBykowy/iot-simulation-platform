@@ -1,6 +1,7 @@
 package com.michalbykowy.iotsim.config;
 
 import com.influxdb.client.InfluxDBClient;
+import com.influxdb.client.WriteApi;
 import jakarta.annotation.PostConstruct;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -10,20 +11,20 @@ import org.springframework.stereotype.Component;
 public class LogbackConfig {
 
     private final SimpMessagingTemplate messagingTemplate;
-    private final InfluxDBClient influxDBClient;
+    private final WriteApi writeApi;
     private final String bucket;
 
     public LogbackConfig(
             SimpMessagingTemplate messagingTemplate,
-            InfluxDBClient influxDBClient,
+            WriteApi writeApi,
             @Value("${influx.bucket}") String bucket) {
         this.messagingTemplate = messagingTemplate;
-        this.influxDBClient = influxDBClient;
+        this.writeApi = writeApi;
         this.bucket = bucket;
     }
 
     @PostConstruct
     public void init() {
-        MultiTargetLogAppender.setDependencies(messagingTemplate, influxDBClient, bucket);
+        MultiTargetLogAppender.setDependencies(messagingTemplate, writeApi, bucket);
     }
 }

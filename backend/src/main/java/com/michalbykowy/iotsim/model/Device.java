@@ -24,7 +24,9 @@ public class Device {
 
     @Column(columnDefinition = "TEXT")
     private String simulationConfig;
+
     private boolean simulationActive;
+    private boolean online;
 
     public Device() {}
 
@@ -84,4 +86,7 @@ public class Device {
     public void setSimulationActive(boolean simulationActive) {
         this.simulationActive = simulationActive;
     }
+
+    public boolean isOnline() { return online; }
+    public void setOnline(boolean online) { this.online = online; }
 }

@@ -10,5 +10,6 @@ public record DeviceResponse(
         DeviceRole role,
         String currentState,
         String simulationConfig,
-        boolean simulationActive
+        boolean simulationActive,
+        boolean online
 ) {}

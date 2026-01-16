@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { memo, useMemo, useState } from 'react';
 import {
     CartesianGrid,
     Legend,
@@ -23,7 +23,7 @@ const parseRangeToMs = (range: string): number => {
         case 'd':
             return value * 24 * 60 * 60 * 1000;
         default:
-            return 60 * 60 * 1000;
+            return 15 * 60 * 1000;
     }
 };
 
@@ -34,19 +34,19 @@ interface RealTimeChartProps {
     readonly selectedRange: string;
 }
 
-export function RealTimeChart({ chartData, selectedRange }: RealTimeChartProps) {
-    const [timeDomain, setTimeDomain] = useState<[AxisDomain, AxisDomain]>(['auto', 'auto']);
+function RealTimeChartComponent({ chartData, selectedRange }: RealTimeChartProps) {
+    const timeDomain = useMemo<[AxisDomain, AxisDomain]>(() => {
+        if (chartData.length === 0) {
+            return ['auto', 'auto'];
+        }
 
-    useEffect(() => {
+        const lastPoint = chartData[chartData.length - 1];
+        const latestTime = lastPoint.time;
         const rangeMs = parseRangeToMs(selectedRange);
-        const updateDomain = () => {
-            const now = Date.now();
-            setTimeDomain([now - rangeMs, now]);
-        };
-        updateDomain();
-        const intervalId = setInterval(updateDomain, 1000);
-        return () => clearInterval(intervalId);
-    }, [selectedRange]);
+
+        // Define window: [Latest Time - Range, Latest Time]
+        return [latestTime - rangeMs, latestTime];
+    }, [chartData, selectedRange]);
 
     const allKeys = useMemo(() => {
         const keys = new Set<string>();
@@ -62,6 +62,7 @@ export function RealTimeChart({ chartData, selectedRange }: RealTimeChartProps) 
 
     const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
 
+    // Sync visible keys when data structure changes
     useMemo(() => {
         const newVisibleKeys = { ...visibleKeys };
         let changed = false;
@@ -128,7 +129,7 @@ export function RealTimeChart({ chartData, selectedRange }: RealTimeChartProps) 
                                     strokeWidth={2}
                                     dot={false}
                                     connectNulls
-                                    isAnimationActive={false}
+                                    isAnimationActive={false} // Performance optimization
                                 />
                             );
                         }
@@ -139,3 +140,5 @@ export function RealTimeChart({ chartData, selectedRange }: RealTimeChartProps) 
         </Box>
     );
 }
+
+export const RealTimeChart = memo(RealTimeChartComponent);

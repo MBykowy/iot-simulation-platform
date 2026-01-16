@@ -73,14 +73,11 @@ class DeviceServiceTest {
 
     @Test
     void testSendCommand_ShouldPublishToMqtt() {
-        // Arrange
         String deviceId = "actuator-1";
         Map<String, Object> command = Map.of("status", "ON");
 
-        // Act
         deviceService.sendCommand(deviceId, command);
 
-        // Assert
         verify(mqttGateway).sendToMqtt(
                 contains("\"status\":\"ON\""),
                 eq("iot/devices/actuator-1/cmd")
@@ -89,7 +86,6 @@ class DeviceServiceTest {
 
     @Test
     void testSendCommand_ShouldLoopback_WhenDeviceIsVirtual() {
-        // Arrange
         String deviceId = "virt-1";
         Map<String, Object> command = Map.of("status", "OFF");
         Device virtualDevice = new Device(deviceId, "Virt", DeviceType.VIRTUAL, DeviceRole.ACTUATOR, "{}");
@@ -97,10 +93,8 @@ class DeviceServiceTest {
         when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(virtualDevice));
         when(deviceRepository.save(any(Device.class))).thenAnswer(i -> i.getArguments()[0]);
 
-        // Act
         deviceService.sendCommand(deviceId, command);
 
-        // Assert
         verify(mqttGateway).sendToMqtt(anyString(), anyString());
 
         verify(deviceRepository).save(argThat(d -> d.getCurrentState().contains("OFF")));

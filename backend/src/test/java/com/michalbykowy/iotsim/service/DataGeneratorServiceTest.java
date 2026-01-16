@@ -46,12 +46,11 @@ class DataGeneratorServiceTest {
 
     @Test
     void generateDataTick_ShouldGenerateData_WhenIntervalElapsed() throws Exception {
-        // Arrange
         Device activeDevice = new Device();
         activeDevice.setId("dev-1");
         activeDevice.setSimulationActive(true);
 
-        // Config: Interval 0ms
+        // interval 0ms
         SimulationRequest config = new SimulationRequest(0, Map.of(
                 "temp", new SimulationFieldConfig(SimulationPattern.SINE, Map.of())
         ), null); // null network profile
@@ -60,10 +59,10 @@ class DataGeneratorServiceTest {
         when(deviceRepository.findBySimulationActive(true)).thenReturn(List.of(activeDevice));
         when(mockStrategy.generate(any())).thenReturn(25.5);
 
-        // Act
+        // generate
         dataGeneratorService.generateDataTick();
 
-        // Assert
+        // check
         verify(deviceService, times(1)).handleDeviceEvent(argThat(map -> {
             String state = (String) map.get("state");
             return state.contains("\"temp\":25.5");

@@ -25,7 +25,6 @@ describe('logParser', () => {
 
         render(<>{result.content}</>);
 
-        // FIX: Use Regex to match partial text content
         expect(screen.getByText(/Rule/)).toBeInTheDocument();
         expect(screen.getByText(/Heat Check/)).toBeInTheDocument();
         expect(screen.getByText(/triggered/)).toBeInTheDocument();
@@ -39,7 +38,7 @@ describe('logParser', () => {
 
         expect(screen.getByText('Unknown Error in device')).toBeInTheDocument();
         expect(screen.getByText('Living Room Sensor')).toBeInTheDocument();
-        // Should not have a specific icon for unknown logs
+        // no icon for generic log
         expect(result.icon).toBeNull();
     });
 
@@ -49,16 +48,7 @@ describe('logParser', () => {
         const result = parseLogMessage(message, deviceMap);
 
         render(<>{result.details}</>);
-        // FIX: Test the content of the render, not just a single node lookup for "Aggregation Query Executed"
-        // Since that text is in 'content', not 'details'.
-
-        // Correct check based on your implementation:
-        // getFluxQueryContent returns: content: "Aggregation Query Executed", details: <pre>{query}</pre>
-
-        // So if we render `result.details`, we should only find the query.
         expect(screen.getByText(query)).toBeInTheDocument();
-
-        // If we want to test the label, we must render result.content too.
         render(<>{result.content}</>);
         expect(screen.getByText(/Aggregation Query Executed/)).toBeInTheDocument();
     });

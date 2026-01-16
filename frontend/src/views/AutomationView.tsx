@@ -1,22 +1,26 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import {
     Box,
+    Button,
     CircularProgress,
     Container,
     Fade,
     IconButton,
     List,
     ListItem,
+    ListItemIcon,
     ListItemText,
     Paper,
+    Tooltip,
     Typography,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AccountTreeIcon from '@mui/icons-material/AccountTree';
+import RefreshIcon from '@mui/icons-material/Refresh';
+import FiberManualRecordIcon from '@mui/icons-material/FiberManualRecord';
 import { useAppStore } from '../stores/appStore';
 import { AddRuleForm } from '../components/AddRuleForm';
 import { useRules, type Rule } from '../hooks/useRules';
-
 
 interface RuleItemProps {
     readonly rule: Rule;
@@ -35,15 +39,34 @@ function RuleItem({ rule, onDelete }: RuleItemProps) {
                     <DeleteIcon color="error" />
                 </IconButton>
             )}
+            sx={{
+                borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
+                '&:last-child': { borderBottom: 'none' }
+            }}
         >
+            <ListItemIcon sx={{ minWidth: 40 }}>
+                <Tooltip title={rule.active ? "Active: Condition is currently met" : "Inactive: Waiting for condition"}>
+                    <FiberManualRecordIcon
+                        fontSize="small"
+                        color={rule.active ? "success" : "disabled"}
+                        sx={{
+                            opacity: rule.active ? 1 : 0.3,
+                            filter: rule.active ? 'drop-shadow(0 0 4px #4caf50)' : 'none'
+                        }}
+                    />
+                </Tooltip>
+            </ListItemIcon>
             <ListItemText
-                primary={<Typography color="text.primary">{rule.name}</Typography>}
-                secondary={<Typography color="text.secondary">{`ID: ${rule.id}`}</Typography>}
+                primary={<Typography color="text.primary" fontWeight={500}>{rule.name}</Typography>}
+                secondary={
+                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                        ID: {rule.id.substring(0, 8)}...
+                    </Typography>
+                }
             />
         </ListItem>
     );
 }
-
 
 export function AutomationView() {
     const devices = useAppStore((state) => state.devices);
@@ -51,14 +74,32 @@ export function AutomationView() {
 
     const { rules, isLoading, deleteRule, refreshRules } = useRules();
 
+    const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+
     useEffect(() => {
-        fetchDevices();
+        const init = async () => {
+            await fetchDevices();
+            setHasLoadedOnce(true);
+        };
+        void init();
     }, [fetchDevices]);
 
+    useEffect(() => {
+        if (!isLoading && rules.length >= 0) {
+            setHasLoadedOnce(true);
+        }
+    }, [isLoading, rules.length]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            void refreshRules().catch(() => {});
+        }, 5000);
+        return () => clearInterval(interval);
+    }, [refreshRules]);
 
     let content: React.ReactNode;
 
-    if (isLoading) {
+    if (isLoading && !hasLoadedOnce) {
         content = (
             <Box sx={{ py: 4, textAlign: 'center' }}>
                 <CircularProgress />
@@ -66,8 +107,8 @@ export function AutomationView() {
         );
     } else if (rules.length > 0) {
         content = (
-            <Paper variant="outlined" sx={{ background: 'transparent' }}>
-                <List>
+            <Paper variant="outlined" sx={{ background: 'rgba(0,0,0,0.2)', borderColor: 'rgba(255,255,255,0.1)' }}>
+                <List disablePadding>
                     {rules.map((rule) => (
                         <RuleItem key={rule.id} rule={rule} onDelete={deleteRule} />
                     ))}
@@ -106,27 +147,34 @@ export function AutomationView() {
                             borderRadius: 3,
                         }}
                     >
-                        <Box sx={{ display: 'flex', alignItems: 'center', mb: 3, gap: 1.5 }}>
-                            <Box
-                                sx={{
-                                    p: 1.5,
-                                    borderRadius: 2,
-                                    background: 'linear-gradient(135deg, rgba(96, 165, 250, 0.1) 0%, rgba(167, 139, 250, 0.1) 100%)',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                }}
-                            >
-                                <AccountTreeIcon sx={{ color: 'primary.main', fontSize: 28 }} />
+                        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 3 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                                <Box
+                                    sx={{
+                                        p: 1.5,
+                                        borderRadius: 2,
+                                        background: 'linear-gradient(135deg, rgba(96, 165, 250, 0.1) 0%, rgba(167, 139, 250, 0.1) 100%)',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                    }}
+                                >
+                                    <AccountTreeIcon sx={{ color: 'primary.main', fontSize: 28 }} />
+                                </Box>
+                                <Typography variant="h5" component="h1">
+                                    Automation Rules
+                                </Typography>
                             </Box>
-                            <Typography variant="h5" component="h1">
-                                Automation Rules
-                            </Typography>
-                        </Box>
 
-                        <Typography variant="h6" gutterBottom sx={{ mt: 4 }}>
-                            Existing Rules
-                        </Typography>
+                            <Button
+                                startIcon={<RefreshIcon />}
+                                onClick={() => void refreshRules()}
+                                size="small"
+                                variant="outlined"
+                            >
+                                Refresh
+                            </Button>
+                        </Box>
 
                         {content}
 

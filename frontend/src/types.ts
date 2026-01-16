@@ -1,9 +1,42 @@
-export type DeviceType = 'VIRTUAL' | 'PHYSICAL';
-export type DeviceRole = 'SENSOR' | 'ACTUATOR';
-export type RuleOperator = 'EQUALS' | 'GREATER_THAN' | 'LESS_THAN';
-export type AggregateFunction = 'MEAN' | 'MAX' | 'MIN' | 'SUM' | 'COUNT';
-export type LogLevel = 'TRACE' | 'DEBUG' | 'INFO' | 'WARN' | 'ERROR';
+export enum DeviceType {
+    VIRTUAL = 'VIRTUAL',
+    PHYSICAL = 'PHYSICAL',
+}
 
+export enum DeviceRole {
+    SENSOR = 'SENSOR',
+    ACTUATOR = 'ACTUATOR',
+}
+
+export enum RuleOperator {
+    EQUALS = 'EQUALS',
+    GREATER_THAN = 'GREATER_THAN',
+    LESS_THAN = 'LESS_THAN',
+    NOT_EQUALS = 'NOT_EQUALS',
+}
+
+export enum AggregateFunction {
+    MEAN = 'MEAN',
+    MAX = 'MAX',
+    MIN = 'MIN',
+    SUM = 'SUM',
+    COUNT = 'COUNT',
+}
+
+export enum LogLevel {
+    TRACE = 'TRACE',
+    DEBUG = 'DEBUG',
+    INFO = 'INFO',
+    WARN = 'WARN',
+    ERROR = 'ERROR',
+}
+
+export enum SimulationPattern {
+    SINE = 'SINE',
+    RANDOM = 'RANDOM',
+}
+
+// Domain
 export interface Device {
     id: string;
     name: string;
@@ -12,6 +45,7 @@ export interface Device {
     currentState: string;
     simulationActive: boolean;
     simulationConfig: string | null;
+    online: boolean;
 }
 
 export interface LogMessage {
@@ -22,23 +56,45 @@ export interface LogMessage {
     message: string;
 }
 
-export interface InfluxSensorRecord {
-    _time: string;
-    result?: string;
-    table?: number;
-    deviceId?: string;
-    [key: string]: string | number | undefined;
+export interface Rule {
+    id: string;
+    name: string;
+    triggerConfig: string; // Serialized JSON
+    actionConfig: string;  // Serialized JSON
+    active: boolean;
 }
 
-export interface InfluxLogRecord {
-    _time: string;
-    level: LogLevel;
-    loggerName: string;
-    message: string;
-    result?: string;
-    table?: number;
+// DTO
+export interface DeviceRequest {
+    name: string;
+    type: DeviceType;
+    role: DeviceRole;
 }
-export type SimulationPattern = 'SINE' | 'RANDOM';
+
+export interface UpdateDeviceRequest {
+    name: string;
+}
+
+export interface RuleRequest {
+    name: string;
+    triggerConfig: RuleTriggerConfig;
+    actionConfig: RuleActionConfig;
+}
+
+export interface RuleTriggerConfig {
+    deviceId: string;
+    path?: string;
+    aggregate?: AggregateFunction;
+    field?: string;
+    range?: string;
+    operator: RuleOperator;
+    value: string;
+}
+
+export interface RuleActionConfig {
+    deviceId: string;
+    newState: Record<string, unknown>;
+}
 
 export interface SimulationFieldConfig {
     pattern: SimulationPattern;
@@ -54,4 +110,22 @@ export interface SimulationConfig {
     intervalMs: number;
     fields: Record<string, SimulationFieldConfig>;
     networkProfile?: NetworkProfile;
+}
+
+// influx
+export interface InfluxSensorRecord {
+    _time: string;
+    result?: string;
+    table?: number;
+    deviceId?: string;
+    [key: string]: string | number | undefined;
+}
+
+export interface InfluxLogRecord {
+    _time: string;
+    level: LogLevel;
+    loggerName: string;
+    message: string;
+    result?: string;
+    table?: number;
 }

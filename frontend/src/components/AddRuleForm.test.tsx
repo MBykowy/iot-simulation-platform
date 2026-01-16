@@ -4,15 +4,15 @@ import { AddRuleForm } from './AddRuleForm';
 import * as apiClientModule from '../api/apiClient';
 import type { Device } from '../types';
 
-// Mock apiClient
 vi.mock('../api/apiClient', () => ({
     apiClient: vi.fn(),
 }));
 
-// Mock Store - STRICT TYPE SAFETY APPLIED
+type SnackbarFn = (message: string, severity: 'success' | 'error' | 'info' | 'warning') => void;
+
 vi.mock('../stores/appStore', () => ({
-    useAppStore: <T,>(selector: (state: { showSnackbar: unknown }) => T) => selector({
-        showSnackbar: vi.fn(),
+    useAppStore: <T,>(selector: (state: { showSnackbar: SnackbarFn }) => T) => selector({
+        showSnackbar: vi.fn() as SnackbarFn,
     }),
 }));
 
@@ -29,29 +29,19 @@ describe('AddRuleForm', () => {
         render(<AddRuleForm devices={mockDevices} onRuleAdded={onRuleAdded} />);
 
         const submitBtn = screen.getByRole('button', { name: /Create Rule/i });
-
         expect(submitBtn).toBeDisabled();
 
-        const nameInput = screen.getByLabelText(/Rule Name/i);
-        fireEvent.change(nameInput, { target: { value: 'High Temp Alert' } });
-
-        const valueInput = screen.getByLabelText(/Value/i);
-        fireEvent.change(valueInput, { target: { value: '30' } });
+        fireEvent.change(screen.getByLabelText(/Rule Name/i), { target: { value: 'High Temp Alert' } });
+        fireEvent.change(screen.getByLabelText(/Value/i), { target: { value: '30' } });
 
         const comboboxes = screen.getAllByRole('combobox');
-
         fireEvent.mouseDown(comboboxes[0]);
-        const triggerOption = await screen.findByRole('option', { name: 'Temp Sensor' });
-        fireEvent.click(triggerOption);
+        fireEvent.click(await screen.findByRole('option', { name: 'Temp Sensor' }));
 
         fireEvent.mouseDown(comboboxes[2]);
-        const actionOption = await screen.findByRole('option', { name: 'Light Switch' });
-        fireEvent.click(actionOption);
+        fireEvent.click(await screen.findByRole('option', { name: 'Light Switch' }));
 
-        await waitFor(() => {
-            expect(submitBtn).toBeEnabled();
-        });
-
+        await waitFor(() => expect(submitBtn).toBeEnabled());
         fireEvent.click(submitBtn);
 
         await waitFor(() => {
@@ -59,17 +49,11 @@ describe('AddRuleForm', () => {
                 method: 'POST',
                 body: expect.objectContaining({
                     name: 'High Temp Alert',
-                    triggerConfig: expect.objectContaining({
-                        deviceId: 'sensor-1',
-                        value: '30'
-                    }),
-                    actionConfig: expect.objectContaining({
-                        deviceId: 'actuator-1'
-                    })
+                    triggerConfig: expect.objectContaining({ deviceId: 'sensor-1', value: '30' }),
+                    actionConfig: expect.objectContaining({ deviceId: 'actuator-1' })
                 })
             }));
         });
-
         expect(onRuleAdded).toHaveBeenCalled();
     });
 });

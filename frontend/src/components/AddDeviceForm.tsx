@@ -11,14 +11,13 @@ import {
     type SelectChangeEvent,
 } from '@mui/material';
 import { useAppStore } from '../stores/appStore';
-import type { DeviceRole } from '../types';
-
-const API_URL = globalThis.location.origin;
+import { DeviceType, DeviceRole, type DeviceRequest } from '../types';
+import { apiClient } from '../api/apiClient';
 
 export function AddDeviceForm() {
     const showSnackbar = useAppStore((state) => state.showSnackbar);
     const [name, setName] = useState('');
-    const [role, setRole] = useState<DeviceRole>('SENSOR');
+    const [role, setRole] = useState<DeviceRole>(DeviceRole.SENSOR);
 
     const handleNameChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         setName(event.target.value);
@@ -28,37 +27,33 @@ export function AddDeviceForm() {
         setRole(event.target.value as DeviceRole);
     };
 
-    const handleSubmit = (event: React.FormEvent) => {
+    const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
 
-        const newDevice = {
+        const newDevice: DeviceRequest = {
             name,
-            type: 'VIRTUAL',
+            type: DeviceType.VIRTUAL,
             role,
         };
 
-        fetch(`${API_URL}/api/devices`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(newDevice),
-        })
-            .then((response) => {
-                if (!response.ok) {
-                    throw new Error('Failed to create device');
-                }
-                setName('');
-                setRole('SENSOR');
-                showSnackbar('Virtual device created successfully!', 'success');
-            })
-            .catch(() => {
-                showSnackbar('Error creating device.', 'error');
+        try {
+            await apiClient('/api/devices', {
+                method: 'POST',
+                body: newDevice,
             });
+
+            setName('');
+            setRole(DeviceRole.SENSOR);
+            showSnackbar('Virtual device created successfully!', 'success');
+        } catch {
+            // error handling in apiClient
+        }
     };
 
     return (
         <Box
             component="form"
-            onSubmit={handleSubmit}
+            onSubmit={(e) => void handleSubmit(e)}
             sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}
         >
             <Typography variant="h6">Add Virtual Device</Typography>
@@ -78,8 +73,8 @@ export function AddDeviceForm() {
                     label="Device Role"
                     onChange={handleRoleChange}
                 >
-                    <MenuItem value="SENSOR">Sensor</MenuItem>
-                    <MenuItem value="ACTUATOR">Actuator</MenuItem>
+                    <MenuItem value={DeviceRole.SENSOR}>Sensor</MenuItem>
+                    <MenuItem value={DeviceRole.ACTUATOR}>Actuator</MenuItem>
                 </Select>
             </FormControl>
             <Button type="submit" variant="contained" color="primary">

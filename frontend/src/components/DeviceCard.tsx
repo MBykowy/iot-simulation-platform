@@ -9,6 +9,8 @@ import LightbulbIcon from '@mui/icons-material/Lightbulb';
 import HistoryIcon from '@mui/icons-material/Timeline';
 import { useDeviceActions } from '../hooks/useDeviceActions';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
+import CircleIcon from '@mui/icons-material/Circle';
+
 
 interface DeviceCardProps {
     readonly device: Device;
@@ -70,6 +72,17 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onCommandC
                             {device.name}
                         </Typography>
                     </Stack>
+
+                    <Tooltip title={device.online ? "Online" : "Offline"}>
+                        <CircleIcon
+                            sx={{
+                                width: 12,
+                                height: 12,
+                                color: device.online ? '#4caf50' : '#f44336', // Green or Red
+                                filter: device.online ? 'drop-shadow(0 0 2px #4caf50)' : 'none'
+                            }}
+                        />
+                    </Tooltip>
                     <Chip
                         label={device.type.charAt(0)}
                         size="small"

@@ -3,15 +3,15 @@ package com.michalbykowy.iotsim.service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-
-import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class MqttMessageService {
-
     private static final Logger logger = LoggerFactory.getLogger(MqttMessageService.class);
 
-    private static final int DEVICE_ID_TOPIC_INDEX = 2;
+    // Pattern matches "iot/devices/{id}/data" and captures {id} in group 1
+    private static final Pattern TOPIC_PATTERN = Pattern.compile("^iot/devices/([^/]+)/(data|status)$");
 
     private final DeviceService deviceService;
 
@@ -20,19 +20,21 @@ public class MqttMessageService {
     }
 
     public void handleMessage(String topic, String payload) {
-        try {
-            // Parses deviceId from topic (e.g., "iot/devices/123/data" -> "123")
-            String deviceId = topic.split("/")[DEVICE_ID_TOPIC_INDEX];
+        Matcher matcher = TOPIC_PATTERN.matcher(topic);
 
-            Map<String, Object> eventPayload = Map.of(
-                    "deviceId", deviceId,
-                    "state", payload
-            );
+        if (!matcher.matches()) {
+            return;
+        }
 
-            deviceService.handleDeviceEvent(eventPayload);
+        String deviceId = matcher.group(1);
+        String subTopic = matcher.group(2);
 
-        } catch (Exception e) {
-            logger.error("Error processing MQTT message on topic: {}", topic, e);
+        if ("data".equals(subTopic)) {
+            deviceService.handleDeviceEvent(java.util.Map.of("deviceId", deviceId, "state", payload));
+        }
+        else if ("status".equals(subTopic)) {
+            boolean isOnline = "ONLINE".equalsIgnoreCase(payload);
+            deviceService.updateDeviceStatus(deviceId, isOnline);
         }
     }
 }

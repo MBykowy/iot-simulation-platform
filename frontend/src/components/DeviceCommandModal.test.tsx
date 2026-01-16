@@ -10,8 +10,8 @@ vi.mock('../api/apiClient', () => ({
 }));
 
 vi.mock('../stores/appStore', () => ({
-    useAppStore: <T,>(selector: (state: { showSnackbar: unknown }) => T) => selector({
-        showSnackbar: vi.fn(),
+    useAppStore: <T,>(selector: (state: { showSnackbar: SnackbarFn }) => T) => selector({
+        showSnackbar: vi.fn() as SnackbarFn,
     }),
 }));
 
@@ -32,15 +32,13 @@ describe('DeviceCommandModal', () => {
 
         render(<DeviceCommandModal device={mockDevice} open={true} onClose={onClose} />);
 
-        // 1. Verify Title
         expect(screen.getByText(/Send Command: Smart Fan/i)).toBeInTheDocument();
 
-        // 2. Select Action (Default is ON)
-        // Click Send
+        // select action and send
         const sendBtn = screen.getByRole('button', { name: /Send Command/i });
         fireEvent.click(sendBtn);
 
-        // 3. Verify API Call
+        // check api call
         await waitFor(() => {
             expect(mockApiClient).toHaveBeenCalledWith('/api/devices/actuator-1/command', expect.objectContaining({
                 method: 'POST',
@@ -57,19 +55,19 @@ describe('DeviceCommandModal', () => {
 
         render(<DeviceCommandModal device={mockDevice} open={true} onClose={onClose} />);
 
-        // 1. Switch to JSON Mode
+        // json mode
         const jsonBtn = screen.getByRole('button', { name: /Advanced \(JSON\)/i });
         fireEvent.click(jsonBtn);
 
-        // 2. Input JSON
+        // input json
         const input = screen.getByLabelText(/JSON Payload/i);
         fireEvent.change(input, { target: { value: '{"speed": 100}' } });
 
-        // 3. Click Send
+        // send
         const sendBtn = screen.getByRole('button', { name: /Send Command/i });
         fireEvent.click(sendBtn);
 
-        // 4. Verify API Call
+        // check api
         await waitFor(() => {
             expect(mockApiClient).toHaveBeenCalledWith('/api/devices/actuator-1/command', expect.objectContaining({
                 method: 'POST',

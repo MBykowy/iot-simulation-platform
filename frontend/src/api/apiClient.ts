@@ -12,50 +12,68 @@ interface RequestOptions {
 }
 
 /**
- * Client API handling fetch calls, response parsing,
- * and error handling via Snackbar.
+ * Centralized API Client.
+ * Throws errors to allow callers to handle loading states.
+ * Automatically dispatches generic error messages to Snackbar.
  */
-export async function apiClient<T>(endpoint: string, options: RequestOptions): Promise<T | null> {
+export async function apiClient<T>(endpoint: string, options: RequestOptions = { method: 'GET' }): Promise<T> {
     const { showSnackbar } = useAppStore.getState();
 
     try {
-        let requestBody: string | null = null;
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            ...options.headers,
+        };
+
+        let body: string | undefined;
         if (options.body) {
-            requestBody = JSON.stringify(options.body);
+            body = JSON.stringify(options.body);
         }
 
         const response = await fetch(`${API_URL}${endpoint}`, {
             method: options.method,
-            headers: {
-                'Content-Type': 'application/json',
-                ...options.headers,
-            },
-            body: requestBody,
+            headers,
+            body,
         });
 
+        //  Handle Application Errors
         if (!response.ok) {
-            const errorData = (await response.json().catch(() => null)) as Record<string, unknown> | null;
-
-            let errorMessage = `Request failed with status ${response.status}`;
-            if (errorData && typeof errorData.message === 'string') {
-                errorMessage = errorData.message;
+            let errorMessage = `Request failed: ${response.status} ${response.statusText}`;
+            try {
+                // parse backend dto errors
+                const errorData = (await response.json()) as { message?: string };
+                if (errorData?.message) {
+                    errorMessage = errorData.message;
+                }
+            } catch {
+                //use generic messange
             }
-
             throw new Error(errorMessage);
         }
 
-        if (response.status === HTTP_NO_CONTENT) {
+        // empty
+        const contentLength = response.headers.get('content-length');
+        if (response.status === HTTP_NO_CONTENT || contentLength === '0') {
             return {} as T;
         }
 
-        return (await response.json()) as T;
+        //  json
+        const text = await response.text();
+        if (!text) {
+            return {} as T;
+        }
+
+        return JSON.parse(text) as T;
 
     } catch (error) {
-        let message = 'An unknown network error occurred.';
+        let message = 'Network error occurred.';
         if (error instanceof Error) {
             message = error.message;
         }
+
         showSnackbar(message, 'error');
-        return null;
+
+        // stop loading spinners
+        throw error;
     }
 }

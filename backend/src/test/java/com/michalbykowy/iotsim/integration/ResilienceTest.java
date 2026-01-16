@@ -37,24 +37,24 @@ class ResilienceTest {
 
     @Test
     void writeSensorData_ShouldNotCrashApp_WhenInfluxIsDown() {
-        // 1. Verify healthy write
+        // healthy write
         assertDoesNotThrow(() ->
                 timeSeriesService.writeSensorData("dev-1", "{\"sensors\":{\"val\":1}}")
         );
 
-        // 2. KILL InfluxDB
+        // kill InfluxDB
         influxDB.stop();
 
-        // 3. Attempt write, should log error but not throw exception
+        // try write, should log error but not throw exception
         assertDoesNotThrow(() ->
                         timeSeriesService.writeSensorData("dev-1", "{\"sensors\":{\"val\":2}}"),
                 "App crashed when DB went down!"
         );
 
-        // 4. Restart InfluxDB
+        // restart InfluxDB
         influxDB.start();
 
-        // 5. Verify recovery
+        // check recovery
         assertDoesNotThrow(() ->
                         timeSeriesService.writeSensorData("dev-1", "{\"sensors\":{\"val\":3}}"),
                 "App failed to reconnect to DB!"

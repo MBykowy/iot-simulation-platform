@@ -95,9 +95,30 @@ public class DeviceService {
         logger.info("Deleted device with id: {}", deviceId);
     }
 
+    @Transactional
+    public void updateDeviceStatus(String deviceId, boolean isOnline) {
+        deviceRepository.findById(deviceId).ifPresent(device -> {
+            if (device.isOnline() != isOnline) {
+                device.setOnline(isOnline);
+                Device saved = deviceRepository.save(device);
+                messagingTemplate.convertAndSend(TOPIC_DEVICES, saved);
+                logger.info("Device {} is now {}", deviceId, isOnline ? "ONLINE" : "OFFLINE");
+            }
+        });
+    }
+
+
     private void validateSimulationRequest(SimulationRequest request) {
         if (request.intervalMs() <= 0) {
             throw new IllegalArgumentException("Interval must be positive.");
+        }
+        if (request.networkProfile() != null) {
+            if (request.networkProfile().latencyMs() < 0) {
+                throw new IllegalArgumentException("Latency cannot be negative.");
+            }
+            if (request.networkProfile().packetLossPercent() < 0 || request.networkProfile().packetLossPercent() > 100) {
+                throw new IllegalArgumentException("Packet loss must be between 0 and 100.");
+            }
         }
 
         request.fields().forEach((fieldName, config) -> {
@@ -197,8 +218,9 @@ public class DeviceService {
                 });
 
         device.setCurrentState(finalState);
-        Device savedDevice = deviceRepository.save(device);
+        device.setOnline(true);
 
+        Device savedDevice = deviceRepository.save(device);
         long now = System.currentTimeMillis();
         long last = lastUpdateSent.getOrDefault(deviceId, 0L);
 

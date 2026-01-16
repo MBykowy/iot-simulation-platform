@@ -18,13 +18,10 @@ interface SubscriptionManager {
 
 export function useLogStream(subscriptionManager: SubscriptionManager | null) {
     const [logs, setLogs] = useState<LogMessage[]>([]);
-
     const bufferRef = useRef<LogMessage[]>([]);
 
     useEffect(() => {
-        if (!subscriptionManager) {
-            return undefined;
-        }
+        if (!subscriptionManager) return;
 
         const subscription = subscriptionManager.subscribe('/topic/logs', (message: IMessage) => {
             try {
@@ -41,7 +38,7 @@ export function useLogStream(subscriptionManager: SubscriptionManager | null) {
                 };
                 bufferRef.current.push(newLog);
             } catch {
-                // Silently fail to avoid loop
+                // silent catch
             }
         });
 
