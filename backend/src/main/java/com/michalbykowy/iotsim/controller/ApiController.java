@@ -39,6 +39,8 @@ public class ApiController {
     }
 
     private DeviceResponse mapToDto(Device device) {
+        boolean isOnline = device.isOnline() != null && device.isOnline();
+
         return new DeviceResponse(
                 device.getId(),
                 device.getName(),
@@ -47,7 +49,7 @@ public class ApiController {
                 device.getCurrentState(),
                 device.getSimulationConfig(),
                 device.isSimulationActive(),
-                device.isOnline()
+                isOnline
         );
     }
 

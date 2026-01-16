@@ -158,13 +158,16 @@
                 </dependencies>
                 <configuration>
                     <targetClasses>
-                        <!-- FIX: Renamed Engine to Service -->
                         <param>com.michalbykowy.iotsim.service.SimulationService*</param>
                         <param>com.michalbykowy.iotsim.service.TimeSeriesService*</param>
+                        <param>com.michalbykowy.iotsim.service.DeviceService*</param>
                     </targetClasses>
                     <targetTests>
-                        <param>com.michalbykowy.iotsim.service.*</param>
+                        <param>com.michalbykowy.iotsim.*</param>
                     </targetTests>
+
+                    <timeoutConstant>15000</timeoutConstant> <!-- some tests are 10sec long -->
+
                     <outputFormats>
                         <value>HTML</value>
                     </outputFormats>

@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 
 import java.util.ArrayList;
@@ -26,6 +27,7 @@ import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
+@ActiveProfiles("test")
 class DeviceServiceConcurrencyTest {
 
     private static final Logger logger = LoggerFactory.getLogger(DeviceServiceConcurrencyTest.class);
@@ -78,7 +80,7 @@ class DeviceServiceConcurrencyTest {
         }
 
         boolean finished = latch.await(10, TimeUnit.SECONDS);
-        assertTrue(finished, "Test timed out - potential deadlock");
+        assertTrue(finished, "Test timed out");
 
         // No silent failures in threads
         assertTrue(exceptions.isEmpty(), "Threads threw exceptions: " + exceptions);

@@ -45,7 +45,7 @@ public class DataGeneratorService {
     // TaskScheduler for delayed events
     private final TaskScheduler taskScheduler;
 
-    // Executor for parallel simulation ticks
+    // for parallel simulation ticks
     private final ExecutorService executorService;
     private final Random random = new Random();
 

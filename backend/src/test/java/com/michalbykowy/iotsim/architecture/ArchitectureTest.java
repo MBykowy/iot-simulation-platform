@@ -50,5 +50,5 @@ public class ArchitectureTest {
             .should().notHaveRawReturnType(
                     resideInAPackage("..model..")
             )
-            .because("Controllers must return DTOs, not Domain Entities, to prevent schema leakage.");
+            .because("Controllers must return DTO");
 }

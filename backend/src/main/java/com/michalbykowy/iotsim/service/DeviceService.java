@@ -98,7 +98,7 @@ public class DeviceService {
     @Transactional
     public void updateDeviceStatus(String deviceId, boolean isOnline) {
         deviceRepository.findById(deviceId).ifPresent(device -> {
-            if (device.isOnline() != isOnline) {
+            if (!Boolean.valueOf(isOnline).equals(device.isOnline())) {
                 device.setOnline(isOnline);
                 Device saved = deviceRepository.save(device);
                 messagingTemplate.convertAndSend(TOPIC_DEVICES, saved);
@@ -106,6 +106,7 @@ public class DeviceService {
             }
         });
     }
+
 
 
     private void validateSimulationRequest(SimulationRequest request) {

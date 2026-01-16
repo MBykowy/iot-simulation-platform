@@ -10,8 +10,8 @@ vi.mock('../api/apiClient', () => ({
 }));
 
 vi.mock('../stores/appStore', () => ({
-    useAppStore: <T,>(selector: (state: { showSnackbar: SnackbarFn }) => T) => selector({
-        showSnackbar: vi.fn() as SnackbarFn,
+    useAppStore: <T,>(selector: (state: { showSnackbar: unknown }) => T) => selector({
+        showSnackbar: vi.fn(),
     }),
 }));
 
@@ -32,13 +32,11 @@ describe('DeviceCommandModal', () => {
 
         render(<DeviceCommandModal device={mockDevice} open={true} onClose={onClose} />);
 
-        expect(screen.getByText(/Send Command: Smart Fan/i)).toBeInTheDocument();
+        expect(screen.getByText(/Control Device: Smart Fan/i)).toBeInTheDocument();
 
-        // select action and send
-        const sendBtn = screen.getByRole('button', { name: /Send Command/i });
+        const sendBtn = screen.getByRole('button', { name: /Dispatch Command/i });
         fireEvent.click(sendBtn);
 
-        // check api call
         await waitFor(() => {
             expect(mockApiClient).toHaveBeenCalledWith('/api/devices/actuator-1/command', expect.objectContaining({
                 method: 'POST',
@@ -55,19 +53,15 @@ describe('DeviceCommandModal', () => {
 
         render(<DeviceCommandModal device={mockDevice} open={true} onClose={onClose} />);
 
-        // json mode
-        const jsonBtn = screen.getByRole('button', { name: /Advanced \(JSON\)/i });
+        const jsonBtn = screen.getByRole('button', { name: /JSON/i });
         fireEvent.click(jsonBtn);
 
-        // input json
         const input = screen.getByLabelText(/JSON Payload/i);
         fireEvent.change(input, { target: { value: '{"speed": 100}' } });
 
-        // send
-        const sendBtn = screen.getByRole('button', { name: /Send Command/i });
+        const sendBtn = screen.getByRole('button', { name: /Dispatch Command/i });
         fireEvent.click(sendBtn);
 
-        // check api
         await waitFor(() => {
             expect(mockApiClient).toHaveBeenCalledWith('/api/devices/actuator-1/command', expect.objectContaining({
                 method: 'POST',

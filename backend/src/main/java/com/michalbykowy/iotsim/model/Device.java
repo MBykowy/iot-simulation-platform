@@ -26,9 +26,11 @@ public class Device {
     private String simulationConfig;
 
     private boolean simulationActive;
-    private boolean online;
+    private Boolean online;
 
-    public Device() {}
+    public Device() {
+        this.online = false;
+    }
 
     public Device(String id, String name, DeviceType type, DeviceRole role, String currentState) {
         this.id = id;
@@ -36,6 +38,7 @@ public class Device {
         this.type = type;
         this.role = role;
         this.currentState = currentState;
+        this.online = false;
     }
 
     public String getId() {
@@ -87,6 +90,11 @@ public class Device {
         this.simulationActive = simulationActive;
     }
 
-    public boolean isOnline() { return online; }
-    public void setOnline(boolean online) { this.online = online; }
+    public Boolean isOnline() {
+        return online != null && online;
+    }
+
+    public void setOnline(Boolean online) {
+        this.online = online;
+    }
 }
