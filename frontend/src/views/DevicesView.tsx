@@ -80,14 +80,14 @@ export function DevicesView() {
             setIsLoading(true);
             try {
                 await fetchDevices();
-            } catch (error) {
-                console.info('Failed to load devices', error);
+            } catch {
+                // Handled by store/apiClient
             } finally {
                 setIsLoading(false);
             }
         };
 
-        void loadDevices().catch((e) => console.info(e));
+        void loadDevices();
     }, [fetchDevices]);
 
     // Handlers

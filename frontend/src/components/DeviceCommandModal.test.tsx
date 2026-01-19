@@ -4,7 +4,6 @@ import { DeviceCommandModal } from './DeviceCommandModal';
 import * as apiClientModule from '../api/apiClient';
 import type { Device } from '../types';
 
-// Mock Dependencies
 vi.mock('../api/apiClient', () => ({
     apiClient: vi.fn(),
 }));
@@ -56,7 +55,7 @@ describe('DeviceCommandModal', () => {
         const jsonBtn = screen.getByRole('button', { name: /JSON/i });
         fireEvent.click(jsonBtn);
 
-        const input = screen.getByLabelText(/JSON Payload/i);
+        const input = screen.getByLabelText(/Command Payload/i);
         fireEvent.change(input, { target: { value: '{"speed": 100}' } });
 
         const sendBtn = screen.getByRole('button', { name: /Dispatch Command/i });

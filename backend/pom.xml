@@ -146,6 +146,16 @@
                 <artifactId>spring-boot-maven-plugin</artifactId>
             </plugin>
             <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.2</version>
+                <configuration>
+                    <environmentVariables>
+                        <DOCKER_API_VERSION>1.44</DOCKER_API_VERSION>
+                    </environmentVariables>
+                </configuration>
+            </plugin>
+            <plugin>
                 <groupId>org.pitest</groupId>
                 <artifactId>pitest-maven</artifactId>
                 <version>1.16.1</version>
@@ -166,7 +176,7 @@
                         <param>com.michalbykowy.iotsim.*</param>
                     </targetTests>
 
-                    <timeoutConstant>15000</timeoutConstant> <!-- some tests are 10sec long -->
+                    <timeoutConstant>15000</timeoutConstant>
 
                     <outputFormats>
                         <value>HTML</value>

@@ -36,6 +36,11 @@ export enum SimulationPattern {
     RANDOM = 'RANDOM',
 }
 
+export enum CommandMode {
+    PRESET = 'PRESET',
+    JSON = 'JSON',
+}
+
 // Domain
 export interface Device {
     id: string;
@@ -59,8 +64,8 @@ export interface LogMessage {
 export interface Rule {
     id: string;
     name: string;
-    triggerConfig: string; // Serialized JSON
-    actionConfig: string;  // Serialized JSON
+    triggerConfig: string; //  JSON
+    actionConfig: string;  //  JSON
     active: boolean;
 }
 

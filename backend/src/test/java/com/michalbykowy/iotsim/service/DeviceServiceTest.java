@@ -51,7 +51,7 @@ class DeviceServiceTest {
         assertNotNull(result);
         assertEquals(deviceId, result.getId());
         assertEquals(DeviceType.PHYSICAL, result.getType());
-        verify(deviceRepository).save(any(Device.class));
+        verify(deviceRepository, atLeastOnce()).save(any(Device.class));
     }
 
     @Test
@@ -69,6 +69,27 @@ class DeviceServiceTest {
         assertEquals("{\"temp\":50}", result.getCurrentState());
         verify(simulationService).processEvent(result);
         verify(timeSeriesService).writeSensorData(eq(deviceId), eq(nestedJson));
+    }
+
+    @Test
+    void testHandleDeviceEvent_ShouldThrottleDatabaseWrites() {
+        //  Device exists
+        String deviceId = "throttle-dev";
+        Device existing = new Device(deviceId, "Throttle Device", DeviceType.PHYSICAL, DeviceRole.SENSOR, "{}");
+        when(deviceRepository.findById(deviceId)).thenReturn(Optional.of(existing));
+        when(deviceRepository.save(any(Device.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        // first update (saved because lastUpdateSent is empty)
+        deviceService.handleDeviceEvent(Map.of("deviceId", deviceId, "state", "{\"v\": 1}"));
+
+        // second update (skip save)
+        deviceService.handleDeviceEvent(Map.of("deviceId", deviceId, "state", "{\"v\": 2}"));
+
+        // check save was called exactly ONCE
+        verify(deviceRepository, times(1)).save(any(Device.class));
+
+        // test InfluxDB was called 2 (telemetry is never throttled)
+        verify(timeSeriesService, times(2)).writeSensorData(eq(deviceId), anyString());
     }
 
     @Test
@@ -97,6 +118,7 @@ class DeviceServiceTest {
 
         verify(mqttGateway).sendToMqtt(anyString(), anyString());
 
-        verify(deviceRepository).save(argThat(d -> d.getCurrentState().contains("OFF")));
+        // check if loopback update occurred
+        verify(simulationService, atLeastOnce()).processEvent(any());
     }
 }

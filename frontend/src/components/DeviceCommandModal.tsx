@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { Device } from '../types';
+import { type Device, CommandMode } from '../types';
 import {
     Box,
     Button,
@@ -35,7 +35,7 @@ interface DeviceCommandModalProps {
 }
 
 export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModalProps) {
-    const [commandType, setCommandType] = useState<'JSON' | 'PRESET'>('PRESET');
+    const [commandType, setCommandType] = useState<CommandMode>(CommandMode.PRESET);
     const [presetAction, setPresetAction] = useState('ON');
     const [customJson, setCustomJson] = useState('{"status": "ON"}');
     const showSnackbar = useAppStore((state) => state.showSnackbar);
@@ -46,7 +46,7 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
         let payload: Record<string, unknown>;
 
         try {
-            if (commandType === 'PRESET') {
+            if (commandType === CommandMode.PRESET) {
                 payload = { status: presetAction };
             } else {
                 payload = JSON.parse(customJson) as Record<string, unknown>;
@@ -56,7 +56,6 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
             return;
         }
 
-        // apiClient handles the error snackbar if the backend returns 4xx/5xx
         const result = await apiClient<void>(`/api/devices/${device.id}/command`, {
             method: 'POST',
             body: payload,
@@ -77,22 +76,22 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
 
                 <Box sx={{ mb: 2, display: 'flex', gap: 1 }}>
                     <Button
-                        variant={commandType === 'PRESET' ? 'contained' : 'outlined'}
-                        onClick={() => setCommandType('PRESET')}
+                        variant={commandType === CommandMode.PRESET ? 'contained' : 'outlined'}
+                        onClick={() => setCommandType(CommandMode.PRESET)}
                         size="small"
                     >
                         Preset
                     </Button>
                     <Button
-                        variant={commandType === 'JSON' ? 'contained' : 'outlined'}
-                        onClick={() => setCommandType('JSON')}
+                        variant={commandType === CommandMode.JSON ? 'contained' : 'outlined'}
+                        onClick={() => setCommandType(CommandMode.JSON)}
                         size="small"
                     >
                         JSON
                     </Button>
                 </Box>
 
-                {commandType === 'PRESET' ? (
+                {commandType === CommandMode.PRESET ? (
                     <FormControl fullWidth sx={{ mt: 1 }}>
                         <InputLabel>Action</InputLabel>
                         <Select

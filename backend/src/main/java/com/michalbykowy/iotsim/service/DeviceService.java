@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+
 @Service
 public class DeviceService {
 
@@ -106,8 +107,6 @@ public class DeviceService {
             }
         });
     }
-
-
 
     private void validateSimulationRequest(SimulationRequest request) {
         if (request.intervalMs() <= 0) {
@@ -215,26 +214,28 @@ public class DeviceService {
                     logger.info("Device {} not found. Creating a new physical device with name: {}",
                             deviceId, deviceName);
 
-                    return new Device(deviceId, deviceName, DeviceType.PHYSICAL, DeviceRole.SENSOR, "{}");
+                    Device newDev = new Device(deviceId, deviceName, DeviceType.PHYSICAL, DeviceRole.SENSOR, "{}");
+                    return deviceRepository.save(newDev);
                 });
 
         device.setCurrentState(finalState);
         device.setOnline(true);
 
-        Device savedDevice = deviceRepository.save(device);
         long now = System.currentTimeMillis();
         long last = lastUpdateSent.getOrDefault(deviceId, 0L);
+        boolean shouldPersist = (now - last > UPDATE_THRESHOLD_MS);
 
-        if (now - last > UPDATE_THRESHOLD_MS) {
-            messagingTemplate.convertAndSend(TOPIC_DEVICES, savedDevice);
+        if (shouldPersist) {
+            device = deviceRepository.save(device);
+            messagingTemplate.convertAndSend(TOPIC_DEVICES, device);
             lastUpdateSent.put(deviceId, now);
         }
 
-        simulationService.processEvent(savedDevice);
+        simulationService.processEvent(device);
 
         timeSeriesService.writeSensorData(deviceId, fullPayloadForInflux);
 
-        return savedDevice;
+        return device;
     }
 
     public void sendCommand(String deviceId, Map<String, Object> commandPayload) {

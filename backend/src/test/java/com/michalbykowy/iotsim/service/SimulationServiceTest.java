@@ -115,4 +115,36 @@ class SimulationServiceTest {
         // Verify rule state was saved as active
         verify(ruleRepository, atLeastOnce()).save(argThat(r -> r.getId().equals("rule-1") && r.isActive()));
     }
+    @Test
+    void testProcessEvent_ShouldDetectInfiniteLoop_AndHalt() throws Exception {
+
+        Device deviceA = new Device("dev-a", "Device A", DeviceType.VIRTUAL, DeviceRole.SENSOR, "{\"val\": 10}");
+        Device deviceB = new Device("dev-b", "Device B", DeviceType.VIRTUAL, DeviceRole.ACTUATOR, "{\"val\": 10}");
+
+        // IF A.val > 5 THEN B.val = 20
+        String triggerA = "{\"deviceId\":\"dev-a\",\"path\":\"$.val\",\"operator\":\"GREATER_THAN\",\"value\":\"5\"}";
+        String actionA = "{\"deviceId\":\"dev-b\",\"newState\":{\"val\":20}}";
+        Rule rule1 = new Rule("r1", "A->B", triggerA, actionA, "dev-a");
+
+        // IF B.val > 5 THEN A.val = 20
+        String triggerB = "{\"deviceId\":\"dev-b\",\"path\":\"$.val\",\"operator\":\"GREATER_THAN\",\"value\":\"5\"}";
+        String actionB = "{\"deviceId\":\"dev-a\",\"newState\":{\"val\":20}}";
+        Rule rule2 = new Rule("r2", "B->A", triggerB, actionB, "dev-b");
+
+
+        when(ruleRepository.findByTriggerDeviceId("dev-a")).thenReturn(List.of(rule1));
+        when(ruleRepository.findByTriggerDeviceId("dev-b")).thenReturn(List.of(rule2));
+
+        when(deviceRepository.findById("dev-a")).thenReturn(Optional.of(deviceA));
+        when(deviceRepository.findById("dev-b")).thenReturn(Optional.of(deviceB));
+
+        when(deviceRepository.save(any(Device.class))).thenAnswer(i -> i.getArguments()[0]);
+
+        simulationService.processEvent(deviceA);
+
+
+        // publishevent should be called 3 times (initial + 2 loops), then stop
+        verify(eventPublisher, times(3)).publishEvent(any(DeviceCommandEvent.class));
+
+    }
 }
