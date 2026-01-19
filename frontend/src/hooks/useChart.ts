@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { type ChartDataPoint, useAppStore } from '../stores/appStore';
 import type { Device, InfluxSensorRecord } from '../types';
+import { API_URL } from '../api/apiClient';
 
-const API_URL = import.meta.env.VITE_API_URL || globalThis.location.origin;
 const OPTIMIZED_POINT_COUNT = 1000;
 const MAX_LIVE_POINTS = 500;
 
@@ -25,7 +25,9 @@ export function useChart(deviceId: string | null) {
 
     const loadChartData = useCallback(
         async (range: string) => {
-            if (!deviceId) return;
+            if (!deviceId) {
+                return;
+            }
 
             setIsLoading(true);
             setSelectedRange(range);
@@ -36,7 +38,9 @@ export function useChart(deviceId: string | null) {
                 const response = await fetch(
                     `${API_URL}/api/devices/${deviceId}/history?start=${range}`,
                 );
-                if (!response.ok) throw new Error('Network response was not ok');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
 
                 const historyData = (await response.json()) as InfluxSensorRecord[];
 
@@ -59,7 +63,12 @@ export function useChart(deviceId: string | null) {
 
                 setFullData(formattedData);
             } catch (error) {
-                const message = error instanceof Error ? error.message : 'Failed to fetch history';
+                let message: string;
+                if (error instanceof Error) {
+                    message = error.message;
+                } else {
+                    message = 'Failed to fetch history';
+                }
                 showSnackbar(message, 'error');
             } finally {
                 setIsLoading(false);
@@ -70,7 +79,9 @@ export function useChart(deviceId: string | null) {
 
     const appendDataPoint = useCallback(
         (device: Device) => {
-            if (device.id !== deviceId) return;
+            if (device.id !== deviceId) {
+                return;
+            }
 
             try {
                 const pointState = JSON.parse(device.currentState);

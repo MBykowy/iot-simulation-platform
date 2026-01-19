@@ -59,7 +59,6 @@ class DeviceServiceConcurrencyTest {
         // exceptions from worker threads to fail the test
         List<Throwable> exceptions = Collections.synchronizedList(new ArrayList<>());
 
-        // Pre-create device
         deviceService.handleDeviceEvent(Map.of("deviceId", deviceId, "state", "{\"val\": 0}"));
 
         for (int i = 0; i < threads; i++) {
@@ -87,7 +86,7 @@ class DeviceServiceConcurrencyTest {
 
         // device still exists and has a valid state
         Device device = deviceRepository.findById(deviceId).orElseThrow();
-        String finalState = device.getCurrentState();
+        String finalState = device.getCurrentState().toString();
 
         logger.info("Final State after concurrency test: {}", finalState);
 

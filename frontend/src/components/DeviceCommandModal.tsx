@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { type Device, CommandMode } from '../types';
+import { useState, type ChangeEvent } from 'react';
+import { type Device, CommandMode, ApiEndpoint } from '../types';
 import {
     Box,
     Button,
@@ -41,7 +41,9 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
     const showSnackbar = useAppStore((state) => state.showSnackbar);
 
     const handleSend = async () => {
-        if (!device) { return; }
+        if (!device) {
+            return;
+        }
 
         let payload: Record<string, unknown>;
 
@@ -56,7 +58,7 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
             return;
         }
 
-        const result = await apiClient<void>(`/api/devices/${device.id}/command`, {
+        const result = await apiClient<void>(`${ApiEndpoint.DEVICES}/${device.id}/command`, {
             method: 'POST',
             body: payload,
         });
@@ -67,61 +69,98 @@ export function DeviceCommandModal({ device, open, onClose }: DeviceCommandModal
         }
     };
 
+    const handleVoidSend = () => {
+        void handleSend();
+    };
+
+    const handleSetPresetMode = () => {
+        setCommandType(CommandMode.PRESET);
+    };
+
+    const handleSetJsonMode = () => {
+        setCommandType(CommandMode.JSON);
+    };
+
+    const handlePresetActionChange = (event: SelectChangeEvent) => {
+        setPresetAction(event.target.value);
+    };
+
+    const handleCustomJsonChange = (event: ChangeEvent<HTMLInputElement>) => {
+        setCustomJson(event.target.value);
+    };
+
+    let presetButtonVariant: 'contained' | 'outlined';
+    let jsonButtonVariant: 'contained' | 'outlined';
+    if (commandType === CommandMode.PRESET) {
+        presetButtonVariant = 'contained';
+        jsonButtonVariant = 'outlined';
+    } else {
+        presetButtonVariant = 'outlined';
+        jsonButtonVariant = 'contained';
+    }
+
+    let formContent: React.ReactNode;
+    if (commandType === CommandMode.PRESET) {
+        formContent = (
+            <FormControl fullWidth sx={{ mt: 1 }}>
+                <InputLabel>Action</InputLabel>
+                <Select
+                    value={presetAction}
+                    label='Action'
+                    onChange={handlePresetActionChange}
+                >
+                    <MenuItem value='ON'>ON</MenuItem>
+                    <MenuItem value='OFF'>OFF</MenuItem>
+                    <MenuItem value='RESET'>RESET</MenuItem>
+                </Select>
+            </FormControl>
+        );
+    } else {
+        formContent = (
+            <TextField
+                fullWidth
+                multiline
+                rows={4}
+                label='Command Payload'
+                value={customJson}
+                onChange={handleCustomJsonChange}
+                sx={{ mt: 1 }}
+            />
+        );
+    }
+
     return (
         <Modal open={open} onClose={onClose}>
             <Box sx={style}>
-                <Typography variant="h6" gutterBottom>
+                <Typography variant='h6' gutterBottom>
                     Control Device: {device?.name}
                 </Typography>
 
                 <Box sx={{ mb: 2, display: 'flex', gap: 1 }}>
                     <Button
-                        variant={commandType === CommandMode.PRESET ? 'contained' : 'outlined'}
-                        onClick={() => setCommandType(CommandMode.PRESET)}
-                        size="small"
+                        variant={presetButtonVariant}
+                        onClick={handleSetPresetMode}
+                        size='small'
                     >
                         Preset
                     </Button>
                     <Button
-                        variant={commandType === CommandMode.JSON ? 'contained' : 'outlined'}
-                        onClick={() => setCommandType(CommandMode.JSON)}
-                        size="small"
+                        variant={jsonButtonVariant}
+                        onClick={handleSetJsonMode}
+                        size='small'
                     >
                         JSON
                     </Button>
                 </Box>
 
-                {commandType === CommandMode.PRESET ? (
-                    <FormControl fullWidth sx={{ mt: 1 }}>
-                        <InputLabel>Action</InputLabel>
-                        <Select
-                            value={presetAction}
-                            label="Action"
-                            onChange={(e: SelectChangeEvent) => setPresetAction(e.target.value)}
-                        >
-                            <MenuItem value="ON">ON</MenuItem>
-                            <MenuItem value="OFF">OFF</MenuItem>
-                            <MenuItem value="RESET">RESET</MenuItem>
-                        </Select>
-                    </FormControl>
-                ) : (
-                    <TextField
-                        fullWidth
-                        multiline
-                        rows={4}
-                        label="Command Payload"
-                        value={customJson}
-                        onChange={(e) => setCustomJson(e.target.value)}
-                        sx={{ mt: 1 }}
-                    />
-                )}
+                {formContent}
 
                 <Button
                     fullWidth
-                    variant="contained"
-                    color="secondary"
+                    variant='contained'
+                    color='secondary'
                     startIcon={<SendIcon />}
-                    onClick={() => { void handleSend(); }}
+                    onClick={handleVoidSend}
                     sx={{ mt: 3 }}
                 >
                     Dispatch Command

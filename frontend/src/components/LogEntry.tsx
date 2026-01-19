@@ -21,7 +21,7 @@ function LogEntryComponent({ log, devices }: LogEntryProps) {
 
     const { content, icon, details, isExpandable, opacity } = useMemo(
         () => parseLogMessage(log.message, deviceNameMap),
-        [log.message, deviceNameMap]
+        [log.message, deviceNameMap],
     );
 
     const handleExpandClick = () => setExpanded(!expanded);

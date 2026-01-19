@@ -7,13 +7,14 @@ import com.michalbykowy.iotsim.api.exception.ResourceNotFoundException;
 import com.michalbykowy.iotsim.dto.RuleRequest;
 import com.michalbykowy.iotsim.model.Rule;
 import com.michalbykowy.iotsim.repository.RuleRepository;
+import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
-import jakarta.annotation.PostConstruct;
 import java.util.List;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 @Service
 public class RuleService {
@@ -30,25 +31,35 @@ public class RuleService {
     @PostConstruct
     public void migrateRules() {
         List<Rule> rules = ruleRepository.findAll();
-        boolean modified = false;
-        for (Rule rule : rules) {
-            if (rule.getTriggerDeviceId() == null && rule.getTriggerConfig() != null) {
-                try {
-                    JsonNode config = objectMapper.readTree(rule.getTriggerConfig());
-                    if (config.has("deviceId")) {
-                        rule.setTriggerDeviceId(config.get("deviceId").asText());
-                        ruleRepository.save(rule);
-                        modified = true;
-                        logger.info("Migrated rule {} with triggerDeviceId: {}", rule.getId(), rule.getTriggerDeviceId());
+        AtomicBoolean modified = new AtomicBoolean(false);
+
+        rules.stream()
+                .filter(rule -> rule.getTriggerDeviceId() == null && rule.getTriggerConfig() != null)
+                .forEach(rule -> {
+                    if (migrateSingleRule(rule)) {
+                        modified.set(true);
                     }
-                } catch (JsonProcessingException e) {
-                    logger.error("Failed to migrate rule {}: Invalid JSON trigger config", rule.getId(), e);
-                }
-            }
-        }
-        if (modified) {
+                });
+
+        if (modified.get()) {
             logger.info("Rule migration completed.");
         }
+    }
+
+    private boolean migrateSingleRule(Rule rule) {
+        try {
+            JsonNode config = objectMapper.readTree(rule.getTriggerConfig());
+            if (config.has("deviceId")) {
+                rule.setTriggerDeviceId(config.get("deviceId").asText());
+                ruleRepository.save(rule);
+                logger.info("Migrated rule {} with triggerDeviceId: {}",
+                        rule.getId(), rule.getTriggerDeviceId());
+                return true;
+            }
+        } catch (JsonProcessingException e) {
+            logger.error("Failed to migrate rule {}: Invalid JSON trigger config", rule.getId(), e);
+        }
+        return false;
     }
 
     public List<Rule> getAllRules() {

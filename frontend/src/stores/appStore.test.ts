@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { useAppStore, type AppState } from './appStore';
+import { useAppStore } from './appStore';
 import { act } from '@testing-library/react';
 import type {Device, DeviceRole, DeviceType} from '../types';
 

@@ -29,7 +29,6 @@ class MathPropertiesTest {
         // buffer for floating point math
         double epsilon = 0.0001;
 
-        // Assert invariants
         if (result > offset + amplitude + epsilon || result < offset - amplitude - epsilon) {
             throw new AssertionError(String.format("Value %f out of bounds for Amp: %f, Off: %f", result, amplitude, offset));
         }

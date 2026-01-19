@@ -6,12 +6,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import java.util.stream.Collectors;
 
 import java.time.Instant;
+import java.util.stream.Collectors;
 
 /**
  * Centralized exception handler for the entire REST API.
@@ -47,7 +47,7 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles exceptions resulting from invalid arguments or failed validation.
+     * Handles exceptions resulting from invalid arguments.
      * Maps the exception to an HTTP 400 Bad Request response.
      *
      * @param ex      The thrown {@link IllegalArgumentException}.
@@ -95,8 +95,12 @@ public class GlobalExceptionHandler {
     }
 
     /**
-     * Handles Jakarta Validation errors (e.g., @NotBlank, @Min).
-     * Collects all field errors into a single string message.
+     * Handles Jakarta Validation errors triggered by annotations like @NotBlank, @Min, etc.
+     * Collects all field validation errors into a single, user-friendly string message.
+     *
+     * @param ex      The validation exception containing field error details.
+     * @param request The HTTP request that contained the invalid data.
+     * @return A {@link ResponseEntity} with a detailed error message and HTTP 400 status.
      */
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidationException(

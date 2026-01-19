@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, type ChangeEvent, type MouseEvent, type ReactNode } from 'react';
 import {
     Box,
     Button,
@@ -11,7 +11,7 @@ import {
     ToggleButton,
     ToggleButtonGroup,
     Typography,
-    Tooltip
+    Tooltip,
 } from '@mui/material';
 import { TableRows as TableRowsIcon, Timeline as TimelineIcon, WarningAmber as WarningIcon } from '@mui/icons-material';
 import type { Device } from '../types';
@@ -20,6 +20,7 @@ import { DataTableView } from './DataTableView';
 import { useChart } from '../hooks/useChart';
 import { useAppStore } from '../stores/appStore';
 
+const WARNING_POINT_THRESHOLD = 2000;
 const modalPosition = 'absolute' as const;
 
 const style = {
@@ -45,13 +46,20 @@ interface TimeRangeButtonProps {
 }
 
 function TimeRangeButton({ range, selectedRange, onRangeChange }: TimeRangeButtonProps) {
-    const handleClick = () => {
+    const handleClick = useCallback(() => {
         onRangeChange(range);
-    };
+    }, [range, onRangeChange]);
+
+    let buttonVariant: 'contained' | 'outlined';
+    if (selectedRange === range) {
+        buttonVariant = 'contained';
+    } else {
+        buttonVariant = 'outlined';
+    }
 
     return (
         <Button
-            variant={selectedRange === range ? 'contained' : 'outlined'}
+            variant={buttonVariant}
             onClick={handleClick}
         >
             {range}
@@ -98,7 +106,7 @@ export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModal
         };
     }, [open, appendDataPoint, setLiveUpdateCallback]);
 
-    const handleCustomQuery = () => {
+    const handleCustomQuery = useCallback(() => {
         if (startTime) {
             let query = startTime;
             if (endTime) {
@@ -106,30 +114,38 @@ export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModal
             }
             handleRangeChange(query);
         }
-    };
+    }, [startTime, endTime, handleRangeChange]);
 
-    const handleViewModeChange = (
-        _event: React.MouseEvent<HTMLElement>,
+    const handleViewModeChange = useCallback((
+        _event: MouseEvent<HTMLElement>,
         newMode: 'chart' | 'table' | null,
     ) => {
         if (newMode) {
             setViewMode(newMode);
         }
-    };
+    }, [setViewMode]);
 
-    const handleDateChange = (setter: (val: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.value) {
-            setter(new Date(e.target.value).toISOString());
+    const handleStartTimeChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+        if (event.target.value) {
+            setStartTime(new Date(event.target.value).toISOString());
         } else {
-            setter('');
+            setStartTime('');
         }
-    };
+    }, []);
 
-    const handleOptimizationChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const handleEndTimeChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+        if (event.target.value) {
+            setEndTime(new Date(event.target.value).toISOString());
+        } else {
+            setEndTime('');
+        }
+    }, []);
+
+    const handleOptimizationChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
         setIsOptimized(event.target.checked);
-    };
+    }, [setIsOptimized]);
 
-    let content: React.ReactNode;
+    let content: ReactNode;
     if (isLoading) {
         content = (
             <Box sx={{ height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -145,14 +161,14 @@ export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModal
     } else {
         content = (
             <Box sx={{ height: 450, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Typography color="text.secondary">
+                <Typography color='text.secondary'>
                     No data available for the selected time range.
                 </Typography>
             </Box>
         );
     }
 
-    const showWarning = !isOptimized && totalPoints > 2000;
+    const showWarning = !isOptimized && totalPoints > WARNING_POINT_THRESHOLD;
 
     return (
         <Modal open={open} onClose={onClose}>
@@ -163,36 +179,31 @@ export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModal
                     alignItems: 'flex-start',
                     mb: 2,
                     flexWrap: 'wrap',
-                    gap: 2
+                    gap: 2,
                 }}>
                     <Box>
-                        <Typography variant="h6" component="h2" sx={{ mt: 1 }}>
+                        <Typography variant='h6' component='h2' sx={{ mt: 1 }}>
                             History for {device?.name}
                         </Typography>
-
-                        {/* Data Points Stats */}
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mt: 0.5 }}>
-                            <Typography variant="caption" color="text.secondary">
+                            <Typography variant='caption' color='text.secondary'>
                                 Displaying {chartData.length} of {totalPoints} points
                             </Typography>
-
-                            {/* Optimization Toggle */}
                             <FormControlLabel
                                 control={
                                     <Switch
                                         checked={isOptimized}
                                         onChange={handleOptimizationChange}
-                                        size="small"
-                                        color="primary"
+                                        size='small'
+                                        color='primary'
                                     />
                                 }
-                                label={<Typography variant="caption">Optimize</Typography>}
+                                label={<Typography variant='caption'>Optimize</Typography>}
                                 sx={{ ml: 1, mr: 0 }}
                             />
-
                             {showWarning && (
-                                <Tooltip title="High point count may cause lag">
-                                    <WarningIcon color="warning" fontSize="small" />
+                                <Tooltip title='High point count may cause lag'>
+                                    <WarningIcon color='warning' fontSize='small' />
                                 </Tooltip>
                             )}
                         </Box>
@@ -204,16 +215,16 @@ export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModal
                                 value={viewMode}
                                 exclusive
                                 onChange={handleViewModeChange}
-                                size="small"
+                                size='small'
                             >
-                                <ToggleButton value="chart" aria-label="chart view">
+                                <ToggleButton value='chart' aria-label='chart view'>
                                     <TimelineIcon />
                                 </ToggleButton>
-                                <ToggleButton value="table" aria-label="table view">
+                                <ToggleButton value='table' aria-label='table view'>
                                     <TableRowsIcon />
                                 </ToggleButton>
                             </ToggleButtonGroup>
-                            <ButtonGroup variant="outlined" size="small">
+                            <ButtonGroup variant='outlined' size='small'>
                                 {timeRanges.map((range) => (
                                     <TimeRangeButton
                                         key={range}
@@ -224,23 +235,20 @@ export function DeviceHistoryModal({ device, open, onClose }: DeviceHistoryModal
                                 ))}
                             </ButtonGroup>
                         </Box>
-
                         <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                             <TextField
-                                label="Start"
-                                type="datetime-local"
-                                size="small"
-                                InputLabelProps={{ shrink: true }}
-                                onChange={handleDateChange(setStartTime)}
+                                label='Start'
+                                type='datetime-local'
+                                size='small'
+                                onChange={handleStartTimeChange}
                             />
                             <TextField
-                                label="End"
-                                type="datetime-local"
-                                size="small"
-                                InputLabelProps={{ shrink: true }}
-                                onChange={handleDateChange(setEndTime)}
+                                label='End'
+                                type='datetime-local'
+                                size='small'
+                                onChange={handleEndTimeChange}
                             />
-                            <Button onClick={handleCustomQuery} variant="contained" size="small">
+                            <Button onClick={handleCustomQuery} variant='contained' size='small'>
                                 Filter
                             </Button>
                         </Box>

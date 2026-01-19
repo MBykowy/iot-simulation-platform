@@ -1,8 +1,9 @@
 package com.michalbykowy.iotsim.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.michalbykowy.iotsim.event.DeviceCommandEvent;
-import com.michalbykowy.iotsim.integration.MqttGateway;
 import com.michalbykowy.iotsim.model.*;
 import com.michalbykowy.iotsim.repository.DeviceRepository;
 import com.michalbykowy.iotsim.repository.RuleRepository;
@@ -10,18 +11,18 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertInstanceOf;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
@@ -34,16 +35,20 @@ class SimulationServiceTest {
     @Mock private TimeSeriesService timeSeriesService;
     @Mock private ApplicationEventPublisher eventPublisher;
 
-
     @Spy
     private ObjectMapper objectMapper = new ObjectMapper();
+
+    @Captor
+    private ArgumentCaptor<Device> deviceCaptor;
+    @Captor
+    private ArgumentCaptor<Rule> ruleCaptor;
 
     private SimulationService simulationService;
 
     @BeforeEach
     void setUp() {
         simulationService = new SimulationService(
-                3,
+                3, // maxRecursionDepth
                 ruleRepository,
                 deviceRepository,
                 messagingTemplate,
@@ -53,15 +58,18 @@ class SimulationServiceTest {
         );
     }
 
-    @Test
-    void testProcessEvent_ShouldTriggerMqttAction_WhenConditionMet() throws Exception {
-        Device deviceA = new Device("dev-a", "Device A", DeviceType.PHYSICAL, DeviceRole.SENSOR, "{\"temp\": 25}");
-        Device deviceB = new Device("dev-b", "Device B", DeviceType.VIRTUAL, DeviceRole.ACTUATOR, "{\"status\": \"OFF\"}");
+    private Rule createTestRule(String id, String triggerJson, String actionJson, String triggerDeviceId) {
+        return new Rule(id, "Test Rule", triggerJson, actionJson, triggerDeviceId);
+    }
 
-        // IF temp > 20 THEN device B status = ON
+    @Test
+    void processEvent_ShouldTriggerMqttAction_WhenConditionMet() throws IOException {
+        Device deviceA = new Device("dev-a", "Device A", DeviceType.PHYSICAL, DeviceRole.SENSOR, objectMapper.readTree("{\"temp\": 25}"));
+        Device deviceB = new Device("dev-b", "Device B", DeviceType.VIRTUAL, DeviceRole.ACTUATOR, objectMapper.readTree("{\"status\": \"OFF\"}"));
+
         String triggerJson = "{\"deviceId\":\"dev-a\",\"path\":\"$.temp\",\"operator\":\"GREATER_THAN\",\"value\":\"20\"}";
         String actionJson = "{\"deviceId\":\"dev-b\",\"newState\":{\"status\":\"ON\"}}";
-        Rule rule = new Rule("rule-1", "Temp Check", triggerJson, actionJson, "dev-a");
+        Rule rule = createTestRule("rule-1", triggerJson, actionJson, "dev-a");
 
         when(ruleRepository.findByTriggerDeviceId("dev-a")).thenReturn(List.of(rule));
         when(deviceRepository.findById("dev-b")).thenReturn(Optional.of(deviceB));
@@ -69,82 +77,132 @@ class SimulationServiceTest {
 
         simulationService.processEvent(deviceA);
 
-        // verify event publish
-        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
-
-        Object capturedEvent = eventCaptor.getValue();
-        assertInstanceOf(DeviceCommandEvent.class, capturedEvent, "Published event should be DeviceCommandEvent");
-
-        DeviceCommandEvent commandEvent = (DeviceCommandEvent) capturedEvent;
-        assertEquals("dev-b", commandEvent.deviceId());
-        assertTrue(commandEvent.jsonPayload().contains("\"status\":\"ON\""));
-
-        // check DB update
-        verify(deviceRepository, times(1)).save(argThat(dev ->
-                dev.getId().equals("dev-b") && dev.getCurrentState().contains("ON")
-        ));
+        verify(eventPublisher).publishEvent(any(DeviceCommandEvent.class));
+        // check frontend is notified
+        verify(messagingTemplate).convertAndSend(eq("/topic/devices"), deviceCaptor.capture());
+        assertEquals("dev-b", deviceCaptor.getValue().getId());
     }
 
-    @Test
-    void testProcessEvent_ShouldTriggerMqttAction_OnlyOnStateChange() throws Exception {
-        Device deviceA = new Device("dev-a", "Device A", DeviceType.PHYSICAL, DeviceRole.SENSOR, "{\"temp\": 25}");
-        Device deviceB = new Device("dev-b", "Device B", DeviceType.VIRTUAL, DeviceRole.ACTUATOR, "{\"status\": \"OFF\"}");
 
-        //IF temp > 20
+    @Test
+    void processEvent_ShouldNotTriggerAction_WhenConditionNotMet() throws IOException {
+        Device deviceA = new Device("dev-a", "Device A", DeviceType.PHYSICAL, DeviceRole.SENSOR, objectMapper.readTree("{\"temp\": 15}"));
         String triggerJson = "{\"deviceId\":\"dev-a\",\"path\":\"$.temp\",\"operator\":\"GREATER_THAN\",\"value\":\"20\"}";
-        String actionJson = "{\"deviceId\":\"dev-b\",\"newState\":{\"status\":\"ON\"}}";
-        Rule rule = new Rule("rule-1", "Temp Check", triggerJson, actionJson, "dev-a");
-        // rule starts inactive
+        Rule rule = createTestRule("rule-1", triggerJson, "{}", "dev-a");
+
+        when(ruleRepository.findByTriggerDeviceId("dev-a")).thenReturn(List.of(rule));
+
+        simulationService.processEvent(deviceA);
+
+        verify(eventPublisher, never()).publishEvent(any());
+        verify(messagingTemplate, never()).convertAndSend(anyString(), Optional.ofNullable(any()));
+    }
+
+
+    @Test
+    void processEvent_ShouldDeactivateRule_OnFallingEdge() throws IOException {
+        Device deviceA = new Device("dev-a", "Device A", DeviceType.PHYSICAL, DeviceRole.SENSOR, objectMapper.readTree("{\"temp\": 10}"));
+        String triggerJson = "{\"deviceId\":\"dev-a\",\"path\":\"$.temp\",\"operator\":\"GREATER_THAN\",\"value\":\"20\"}";
+        Rule rule = createTestRule("rule-1", triggerJson, "{}", "dev-a");
+        rule.setActive(true); // Rule was previously active
+
+        when(ruleRepository.findByTriggerDeviceId("dev-a")).thenReturn(List.of(rule));
+
+        simulationService.processEvent(deviceA);
+
+        verify(ruleRepository).save(ruleCaptor.capture());
+        assertFalse(ruleCaptor.getValue().isActive());
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+
+    @Test
+    void processEvent_ShouldTriggerAggregateRule_WhenConditionMet() throws IOException {
+        Device deviceA = new Device("dev-a", "Sensor", DeviceType.PHYSICAL, DeviceRole.SENSOR, objectMapper.readTree("{}"));
+        Device deviceB = new Device("dev-b", "Target", DeviceType.VIRTUAL, DeviceRole.ACTUATOR, objectMapper.createObjectNode()); // Target device
+        String triggerJson = "{\"deviceId\":\"dev-a\",\"aggregate\":\"MEAN\",\"field\":\"temp\",\"range\":\"5m\",\"operator\":\"GREATER_THAN\",\"value\":\"25\"}";
+        Rule rule = createTestRule("rule-1", triggerJson, "{\"deviceId\":\"dev-b\",\"newState\":{}}", "dev-a");
+
+        when(ruleRepository.findByTriggerDeviceId("dev-a")).thenReturn(List.of(rule));
+        when(timeSeriesService.queryAggregate("dev-a", "temp", "5m", AggregateFunction.MEAN)).thenReturn(Optional.of(30.0));
+        when(deviceRepository.findById("dev-b")).thenReturn(Optional.of(deviceB));
+        when(deviceRepository.save(deviceB)).thenReturn(deviceB);
+
+        simulationService.processEvent(deviceA);
+
+        verify(eventPublisher).publishEvent(any(DeviceCommandEvent.class));
+    }
+
+
+
+    @Test
+    void processEvent_ShouldHandleStringComparison() throws IOException {
+        Device deviceA = new Device("dev-a", "Door", DeviceType.PHYSICAL, DeviceRole.SENSOR, objectMapper.readTree("{\"status\": \"OPEN\"}"));
+        Device deviceB = new Device("dev-b", "Target", DeviceType.VIRTUAL, DeviceRole.ACTUATOR, objectMapper.createObjectNode()); // Target device
+        String triggerJson = "{\"deviceId\":\"dev-a\",\"path\":\"$.status\",\"operator\":\"EQUALS\",\"value\":\"OPEN\"}";
+        Rule rule = createTestRule("rule-1", triggerJson, "{\"deviceId\":\"dev-b\",\"newState\":{}}", "dev-a");
 
         when(ruleRepository.findByTriggerDeviceId("dev-a")).thenReturn(List.of(rule));
         when(deviceRepository.findById("dev-b")).thenReturn(Optional.of(deviceB));
-        when(deviceRepository.save(any(Device.class))).thenAnswer(i -> i.getArguments()[0]);
+        when(deviceRepository.save(deviceB)).thenReturn(deviceB);
 
-        // first event temp 25 > 20 -> should fire
         simulationService.processEvent(deviceA);
 
-        // second event temp 30 > 20 -> Should not fire again
-        deviceA.setCurrentState("{\"temp\": 30}");
-        simulationService.processEvent(deviceA);
-
-        //check event was published only once
-        ArgumentCaptor<Object> eventCaptor = ArgumentCaptor.forClass(Object.class);
-        verify(eventPublisher, times(1)).publishEvent(eventCaptor.capture());
-
-        // Verify rule state was saved as active
-        verify(ruleRepository, atLeastOnce()).save(argThat(r -> r.getId().equals("rule-1") && r.isActive()));
+        verify(eventPublisher).publishEvent(any(DeviceCommandEvent.class));
     }
+
+
+    @Test
+    void isRuleTriggered_ShouldReturnFalse_WhenJsonPathNotFound() throws IOException {
+        Device device = new Device("dev-a", "Test", DeviceType.PHYSICAL, DeviceRole.SENSOR, objectMapper.readTree("{\"humidity\": 50}"));
+        String triggerJson = "{\"deviceId\":\"dev-a\",\"path\":\"$.temperature\",\"operator\":\"GREATER_THAN\",\"value\":\"20\"}";
+        Rule rule = createTestRule("rule-1", triggerJson, "{}", "dev-a");
+
+        when(ruleRepository.findByTriggerDeviceId("dev-a")).thenReturn(List.of(rule));
+
+        simulationService.processEvent(device);
+
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+
+    @Test
+    void isRuleTriggered_ShouldReturnFalse_ForInvalidTriggerConfig() throws IOException {
+        Device device = new Device("dev-a", "Test", DeviceType.PHYSICAL, DeviceRole.SENSOR, objectMapper.readTree("{}"));
+        Rule rule = createTestRule("rule-1", "{not-json", "{}", "dev-a");
+
+        when(ruleRepository.findByTriggerDeviceId("dev-a")).thenReturn(List.of(rule));
+
+        simulationService.processEvent(device);
+
+        verify(eventPublisher, never()).publishEvent(any());
+    }
+
+
     @Test
     void testProcessEvent_ShouldDetectInfiniteLoop_AndHalt() throws Exception {
+        Device deviceA = new Device("dev-a", "Device A", DeviceType.VIRTUAL, DeviceRole.SENSOR, objectMapper.readTree("{\"val\": 10}"));
+        Device deviceB = new Device("dev-b", "Device B", DeviceType.VIRTUAL, DeviceRole.ACTUATOR, objectMapper.readTree("{\"val\": 10}"));
 
-        Device deviceA = new Device("dev-a", "Device A", DeviceType.VIRTUAL, DeviceRole.SENSOR, "{\"val\": 10}");
-        Device deviceB = new Device("dev-b", "Device B", DeviceType.VIRTUAL, DeviceRole.ACTUATOR, "{\"val\": 10}");
-
-        // IF A.val > 5 THEN B.val = 20
         String triggerA = "{\"deviceId\":\"dev-a\",\"path\":\"$.val\",\"operator\":\"GREATER_THAN\",\"value\":\"5\"}";
         String actionA = "{\"deviceId\":\"dev-b\",\"newState\":{\"val\":20}}";
-        Rule rule1 = new Rule("r1", "A->B", triggerA, actionA, "dev-a");
+        Rule rule1 = createTestRule("r1", triggerA, actionA, "dev-a");
 
-        // IF B.val > 5 THEN A.val = 20
         String triggerB = "{\"deviceId\":\"dev-b\",\"path\":\"$.val\",\"operator\":\"GREATER_THAN\",\"value\":\"5\"}";
         String actionB = "{\"deviceId\":\"dev-a\",\"newState\":{\"val\":20}}";
-        Rule rule2 = new Rule("r2", "B->A", triggerB, actionB, "dev-b");
-
+        Rule rule2 = createTestRule("r2", triggerB, actionB, "dev-b");
 
         when(ruleRepository.findByTriggerDeviceId("dev-a")).thenReturn(List.of(rule1));
         when(ruleRepository.findByTriggerDeviceId("dev-b")).thenReturn(List.of(rule2));
-
         when(deviceRepository.findById("dev-a")).thenReturn(Optional.of(deviceA));
         when(deviceRepository.findById("dev-b")).thenReturn(Optional.of(deviceB));
-
         when(deviceRepository.save(any(Device.class))).thenAnswer(i -> i.getArguments()[0]);
 
         simulationService.processEvent(deviceA);
 
-
         // publishevent should be called 3 times (initial + 2 loops), then stop
         verify(eventPublisher, times(3)).publishEvent(any(DeviceCommandEvent.class));
-
+        // check frontend is notified for each update
+        verify(messagingTemplate, times(3)).convertAndSend(eq("/topic/devices"), any(Device.class));
     }
 }

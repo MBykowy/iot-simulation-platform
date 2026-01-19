@@ -1,4 +1,4 @@
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useState, useCallback, type ChangeEvent } from 'react';
 import {
     CartesianGrid,
     Legend,
@@ -12,6 +12,8 @@ import {
 import { Box, Checkbox, FormControlLabel, FormGroup } from '@mui/material';
 import type { ChartDataPoint } from '../stores/appStore';
 
+const DEFAULT_RANGE_MINUTES = 15;
+
 const parseRangeToMs = (range: string): number => {
     const value = Number.parseInt(range.slice(0, -1), 10);
     const unit = range.slice(-1);
@@ -23,9 +25,11 @@ const parseRangeToMs = (range: string): number => {
         case 'd':
             return value * 24 * 60 * 60 * 1000;
         default:
-            return 15 * 60 * 1000;
+            return DEFAULT_RANGE_MINUTES * 60 * 1000;
     }
 };
+
+const timeFormatter = (timestamp: number) => new Date(timestamp).toLocaleTimeString('en-GB');
 
 type AxisDomain = number | 'auto' | 'dataMin' | 'dataMax';
 
@@ -36,15 +40,14 @@ interface RealTimeChartProps {
 
 function RealTimeChartComponent({ chartData, selectedRange }: RealTimeChartProps) {
     const timeDomain = useMemo<[AxisDomain, AxisDomain]>(() => {
-        if (chartData.length === 0) {
+        const lastPoint = chartData.at(-1);
+        if (!lastPoint) {
             return ['auto', 'auto'];
         }
 
-        const lastPoint = chartData[chartData.length - 1];
         const latestTime = lastPoint.time;
         const rangeMs = parseRangeToMs(selectedRange);
 
-        // Define window: [Latest Time - Range, Latest Time]
         return [latestTime - rangeMs, latestTime];
     }, [chartData, selectedRange]);
 
@@ -62,7 +65,6 @@ function RealTimeChartComponent({ chartData, selectedRange }: RealTimeChartProps
 
     const [visibleKeys, setVisibleKeys] = useState<Record<string, boolean>>({});
 
-    // Sync visible keys when data structure changes
     useMemo(() => {
         const newVisibleKeys = { ...visibleKeys };
         let changed = false;
@@ -77,11 +79,10 @@ function RealTimeChartComponent({ chartData, selectedRange }: RealTimeChartProps
         }
     }, [allKeys, visibleKeys]);
 
-    const createVisibilityChangeHandler = (key: string) => () => {
-        setVisibleKeys((prev) => ({ ...prev, [key]: !prev[key] }));
-    };
-
-    const timeFormatter = (timestamp: number) => new Date(timestamp).toLocaleTimeString('en-GB');
+    const handleVisibilityChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
+        const { name, checked } = event.target;
+        setVisibleKeys((prev) => ({ ...prev, [name]: checked }));
+    }, []);
 
     return (
         <Box>
@@ -89,27 +90,28 @@ function RealTimeChartComponent({ chartData, selectedRange }: RealTimeChartProps
                 {allKeys.map((key) => {
                     const checkboxControl = (
                         <Checkbox
+                            name={key}
                             checked={visibleKeys[key] ?? false}
-                            onChange={createVisibilityChangeHandler(key)}
-                            size="small"
+                            onChange={handleVisibilityChange}
+                            size='small'
                         />
                     );
                     return <FormControlLabel key={key} control={checkboxControl} label={key} />;
                 })}
             </FormGroup>
 
-            <ResponsiveContainer width="100%" height={400}>
-                <LineChart data={chartData} syncId="anyId">
-                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.2)" />
+            <ResponsiveContainer width='100%' height={400}>
+                <LineChart data={chartData} syncId='anyId'>
+                    <CartesianGrid strokeDasharray='3 3' stroke='rgba(255, 255, 255, 0.2)' />
                     <XAxis
-                        dataKey="time"
-                        type="number"
+                        dataKey='time'
+                        type='number'
                         domain={timeDomain}
                         tickFormatter={timeFormatter}
-                        stroke="#888"
+                        stroke='#888'
                         allowDataOverflow
                     />
-                    <YAxis stroke="#888" domain={['auto', 'auto']} />
+                    <YAxis stroke='#888' domain={['auto', 'auto']} />
                     <Tooltip
                         labelFormatter={timeFormatter}
                         contentStyle={{
@@ -123,13 +125,13 @@ function RealTimeChartComponent({ chartData, selectedRange }: RealTimeChartProps
                             return (
                                 <Line
                                     key={key}
-                                    type="monotone"
+                                    type='monotone'
                                     dataKey={key}
                                     stroke={['#60a5fa', '#a78bfa', '#facc15'][index % 3]}
                                     strokeWidth={2}
                                     dot={false}
                                     connectNulls
-                                    isAnimationActive={false} // Performance optimization
+                                    isAnimationActive={false}
                                 />
                             );
                         }

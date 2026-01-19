@@ -173,7 +173,10 @@
                         <param>com.michalbykowy.iotsim.service.DeviceService*</param>
                     </targetClasses>
                     <targetTests>
-                        <param>com.michalbykowy.iotsim.*</param>
+                        <param>com.michalbykowy.iotsim.service.*Test</param>
+                        <param>com.michalbykowy.iotsim.security.*Test</param>
+                        <param>com.michalbykowy.iotsim.integration.*Test</param>
+                        <param>com.michalbykowy.iotsim.concurrency.*Test</param>
                     </targetTests>
 
                     <timeoutConstant>15000</timeoutConstant>

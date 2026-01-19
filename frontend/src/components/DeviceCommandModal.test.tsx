@@ -2,7 +2,7 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import { DeviceCommandModal } from './DeviceCommandModal';
 import * as apiClientModule from '../api/apiClient';
-import type { Device } from '../types';
+import {type Device, DeviceRole, DeviceType} from '../types';
 
 vi.mock('../api/apiClient', () => ({
     apiClient: vi.fn(),
@@ -17,11 +17,12 @@ vi.mock('../stores/appStore', () => ({
 const mockDevice: Device = {
     id: 'actuator-1',
     name: 'Smart Fan',
-    type: 'VIRTUAL',
-    role: 'ACTUATOR',
+    type: DeviceType.VIRTUAL,
+    role: DeviceRole.ACTUATOR,
     currentState: '{}',
     simulationActive: false,
-    simulationConfig: null
+    simulationConfig: null,
+    online: true
 };
 
 describe('DeviceCommandModal', () => {

@@ -2,6 +2,7 @@ import { renderHook, act, waitFor } from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { useChart } from './useChart';
 import { useAppStore } from '../stores/appStore';
+import {DeviceRole, DeviceType} from "../types.ts";
 
 // Mock store
 vi.mock('../stores/appStore', () => ({
@@ -54,11 +55,12 @@ describe('useChart', () => {
             result.current.appendDataPoint({
                 id: 'device-123',
                 name: 'Test',
-                type: 'VIRTUAL',
-                role: 'SENSOR',
+                type: DeviceType.VIRTUAL,
+                role: DeviceRole.ACTUATOR,
                 currentState: '{"temp": 30, "hum": 50}',
                 simulationActive: false,
-                simulationConfig: null
+                simulationConfig: null,
+                online: true,
             });
         });
 
@@ -74,11 +76,12 @@ describe('useChart', () => {
             result.current.appendDataPoint({
                 id: 'device-B',
                 name: 'Test',
-                type: 'VIRTUAL',
-                role: 'SENSOR',
+                type: DeviceType.VIRTUAL,
+                role: DeviceRole.ACTUATOR,
                 currentState: '{"temp": 30}',
                 simulationActive: false,
-                simulationConfig: null
+                simulationConfig: null,
+                online: true,
             });
         });
 

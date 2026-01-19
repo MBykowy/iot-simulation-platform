@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+    <!-- add spring configuration for console logging -->
+    <include resource="org/springframework/boot/logging/logback/base.xml"/>
+
+    <!-- test environment, only log to console. -->
+    <root level="INFO">
+        <appender-ref ref="CONSOLE" />
+    </root>
+</configuration>

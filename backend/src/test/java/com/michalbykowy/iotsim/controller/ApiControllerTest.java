@@ -39,7 +39,7 @@ class ApiControllerTest {
     @Test
     void createDevice_ShouldReturn201_WhenValid() throws Exception {
         DeviceRequest request = new DeviceRequest("Test Device", DeviceType.VIRTUAL, DeviceRole.SENSOR);
-        Device created = new Device("123", "Test Device", DeviceType.VIRTUAL, DeviceRole.SENSOR, "{}");
+        Device created = new Device("123", "Test Device", DeviceType.VIRTUAL, DeviceRole.SENSOR, objectMapper.createObjectNode());
 
         when(deviceService.createDevice(any())).thenReturn(created);
 

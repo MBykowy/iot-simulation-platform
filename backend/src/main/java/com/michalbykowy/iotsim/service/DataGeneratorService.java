@@ -19,14 +19,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 
 @Service
@@ -34,20 +31,16 @@ import java.util.stream.Collectors;
 public class DataGeneratorService {
 
     private static final double ROUNDING_FACTOR = 100.0;
+    private static final int PERCENTAGE_BASE = 100;
     private static final Logger logger = LoggerFactory.getLogger(DataGeneratorService.class);
 
     private final DeviceRepository deviceRepository;
     private final DeviceService deviceService;
     private final ObjectMapper objectMapper;
     private final Map<String, Long> lastUpdateTimestamps;
-    private final Map<SimulationPattern, GeneratorStrategy> strategies;
-
-    // TaskScheduler for delayed events
+    private final EnumMap<SimulationPattern, GeneratorStrategy> strategies;
     private final TaskScheduler taskScheduler;
-
-    // for parallel simulation ticks
     private final ExecutorService executorService;
-    private final Random random = new Random();
 
     public DataGeneratorService(
             DeviceRepository deviceRepository,
@@ -59,15 +52,14 @@ public class DataGeneratorService {
         this.deviceService = deviceService;
         this.objectMapper = objectMapper;
         this.lastUpdateTimestamps = new ConcurrentHashMap<>();
-        this.strategies = new HashMap<>();
+        this.strategies = new EnumMap<>(SimulationPattern.class);
         this.taskScheduler = taskScheduler;
-
-        // Java 21 Virtual Threads: Lightweight threads perfect for I/O bound tasks (DB, Network)
         this.executorService = Executors.newVirtualThreadPerTaskExecutor();
 
         strategyBeans.forEach((name, strategy) ->
                 strategies.put(SimulationPattern.valueOf(name.toUpperCase()), strategy));
     }
+
 
     @PostConstruct
     public void init() {
@@ -76,7 +68,6 @@ public class DataGeneratorService {
 
     @PreDestroy
     public void destroy() {
-        // Clean shutdown of the executor
         executorService.close();
     }
 
@@ -84,13 +75,14 @@ public class DataGeneratorService {
     public void generateDataTick() {
         List<Device> activeSimulations = deviceRepository.findBySimulationActive(true);
 
-        // Cleanup stale entries
+        if (activeSimulations.isEmpty()) {
+            return;
+        }
+
         Set<String> activeIds = activeSimulations.stream()
                 .map(Device::getId)
                 .collect(Collectors.toSet());
         lastUpdateTimestamps.keySet().retainAll(activeIds);
-
-        if (activeSimulations.isEmpty()) return;
 
         long currentTime = System.currentTimeMillis();
 
@@ -106,34 +98,40 @@ public class DataGeneratorService {
     }
 
     private void processDeviceTick(Device device, long currentTime) throws JsonProcessingException {
-        SimulationRequest config = objectMapper.readValue(device.getSimulationConfig(), SimulationRequest.class);
+        SimulationRequest config = objectMapper.treeToValue(device.getSimulationConfig(), SimulationRequest.class);
         long lastUpdate = lastUpdateTimestamps.getOrDefault(device.getId(), 0L);
 
-        if (currentTime - lastUpdate >= config.intervalMs()) {
-            lastUpdateTimestamps.put(device.getId(), currentTime);
+        if (currentTime - lastUpdate < config.intervalMs()) {
+            return;
+        }
 
-            String newState = generateCompositeState(config);
-            NetworkProfile netProfile = config.networkProfile();
+        lastUpdateTimestamps.put(device.getId(), currentTime);
+        String newState = generateCompositeState(config);
 
-            //  Network sim
-            if (netProfile != null) {
-                if (netProfile.packetLossPercent() > 0) {
-                    if (random.nextInt(100) < netProfile.packetLossPercent()) {
-                        logger.debug("SIMULATION: Packet dropped for device {}", device.getId());
-                        return;
-                    }
-                }
+        boolean wasHandledByNetworkSim = handleNetworkSimulation(device.getId(), newState, config.networkProfile());
 
-                // Latency sim
-                if (netProfile.latencyMs() > 0) {
-                    scheduleDelayedUpdate(device.getId(), newState, netProfile.latencyMs());
-                    return;
-                }
-            }
-
-            // Standard
+        if (!wasHandledByNetworkSim) {
             deviceService.handleDeviceEvent(Map.of("deviceId", device.getId(), "state", newState));
         }
+    }
+
+    private boolean handleNetworkSimulation(String deviceId, String newState, NetworkProfile netProfile) {
+        if (netProfile == null) {
+            return false;
+        }
+
+        if (netProfile.packetLossPercent() > 0 &&
+                ThreadLocalRandom.current().nextInt(PERCENTAGE_BASE) < netProfile.packetLossPercent()) {
+            logger.debug("SIMULATION: Packet dropped for device {}", deviceId);
+            return true;
+        }
+
+        if (netProfile.latencyMs() > 0) {
+            scheduleDelayedUpdate(deviceId, newState, netProfile.latencyMs());
+            return true;
+        }
+
+        return false;
     }
 
     private void scheduleDelayedUpdate(String deviceId, String newState, int latencyMs) {

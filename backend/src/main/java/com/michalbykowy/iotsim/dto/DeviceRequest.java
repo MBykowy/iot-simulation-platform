@@ -4,7 +4,6 @@ import com.michalbykowy.iotsim.model.DeviceRole;
 import com.michalbykowy.iotsim.model.DeviceType;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
 public record DeviceRequest(

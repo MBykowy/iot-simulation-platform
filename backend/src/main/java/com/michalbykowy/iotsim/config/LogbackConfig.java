@@ -1,8 +1,8 @@
 package com.michalbykowy.iotsim.config;
 
-import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.WriteApi;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
@@ -26,5 +26,9 @@ public class LogbackConfig {
     @PostConstruct
     public void init() {
         MultiTargetLogAppender.setDependencies(messagingTemplate, writeApi, bucket);
+    }
+    @PreDestroy
+    public void cleanup() {
+        MultiTargetLogAppender.setDependencies(null, null, null);
     }
 }

@@ -11,7 +11,7 @@ export function useDeviceActions() {
             return false;
         }
 
-        const result = await apiClient(`/api/devices/${deviceId}`, {
+        const result = await apiClient(`DEVICES/${deviceId}`, {
             method: 'PUT',
             body: { name: newName },
         });
@@ -28,7 +28,7 @@ export function useDeviceActions() {
             return false;
         }
 
-        const result = await apiClient(`/api/devices/${deviceId}`, { method: 'DELETE' });
+        const result = await apiClient(`DEVICES/${deviceId}`, { method: 'DELETE' });
 
         if (result) {
             removeDeviceFromStore(deviceId);

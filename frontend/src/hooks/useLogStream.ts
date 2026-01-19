@@ -21,30 +21,30 @@ export function useLogStream(subscriptionManager: SubscriptionManager | null) {
     const bufferRef = useRef<LogMessage[]>([]);
 
     useEffect(() => {
-        if (!subscriptionManager) return;
+        if (subscriptionManager) {
+            const subscription = subscriptionManager.subscribe('/topic/logs', (message: IMessage) => {
+                try {
+                    const rawLog = JSON.parse(message.body);
+                    const currentId = logCounter;
+                    logCounter += 1;
 
-        const subscription = subscriptionManager.subscribe('/topic/logs', (message: IMessage) => {
-            try {
-                const rawLog = JSON.parse(message.body);
-                const currentId = logCounter;
-                logCounter += 1;
+                    const newLog: LogMessage = {
+                        id: currentId,
+                        timestamp: rawLog.timestamp,
+                        level: rawLog.level,
+                        loggerName: rawLog.loggerName,
+                        message: rawLog.message,
+                    };
+                    bufferRef.current.push(newLog);
+                } catch {
+                    // silent catch is acceptable for malformed log messages
+                }
+            });
 
-                const newLog: LogMessage = {
-                    id: currentId,
-                    timestamp: rawLog.timestamp,
-                    level: rawLog.level,
-                    loggerName: rawLog.loggerName,
-                    message: rawLog.message,
-                };
-                bufferRef.current.push(newLog);
-            } catch {
-                // silent catch
-            }
-        });
-
-        return () => {
-            subscription?.unsubscribe();
-        };
+            return () => {
+                subscription?.unsubscribe();
+            };
+        }
     }, [subscriptionManager]);
 
     useEffect(() => {

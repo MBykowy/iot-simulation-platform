@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
     Box,
     Button,
@@ -22,6 +22,8 @@ import { useAppStore } from '../stores/appStore';
 import { AddRuleForm } from '../components/AddRuleForm';
 import { useRules, type Rule } from '../hooks/useRules';
 
+const REFRESH_INTERVAL_MS = 5000;
+
 interface RuleItemProps {
     readonly rule: Rule;
     readonly onDelete: (id: string) => void;
@@ -32,34 +34,51 @@ function RuleItem({ rule, onDelete }: RuleItemProps) {
         onDelete(rule.id);
     };
 
+    let tooltipTitle;
+    let iconColor: 'success' | 'disabled';
+    let iconSx;
+
+    if (rule.active) {
+        tooltipTitle = 'Active: Condition is currently met';
+        iconColor = 'success';
+        iconSx = {
+            opacity: 1,
+            filter: 'drop-shadow(0 0 4px #4caf50)',
+        };
+    } else {
+        tooltipTitle = 'Inactive: Waiting for condition';
+        iconColor = 'disabled';
+        iconSx = {
+            opacity: 0.3,
+            filter: 'none',
+        };
+    }
+
     return (
         <ListItem
             secondaryAction={(
-                <IconButton edge="end" aria-label="delete" onClick={handleDelete}>
-                    <DeleteIcon color="error" />
+                <IconButton edge='end' aria-label='delete' onClick={handleDelete}>
+                    <DeleteIcon color='error' />
                 </IconButton>
             )}
             sx={{
                 borderBottom: '1px solid rgba(255, 255, 255, 0.05)',
-                '&:last-child': { borderBottom: 'none' }
+                '&:last-child': { borderBottom: 'none' },
             }}
         >
             <ListItemIcon sx={{ minWidth: 40 }}>
-                <Tooltip title={rule.active ? "Active: Condition is currently met" : "Inactive: Waiting for condition"}>
+                <Tooltip title={tooltipTitle}>
                     <FiberManualRecordIcon
-                        fontSize="small"
-                        color={rule.active ? "success" : "disabled"}
-                        sx={{
-                            opacity: rule.active ? 1 : 0.3,
-                            filter: rule.active ? 'drop-shadow(0 0 4px #4caf50)' : 'none'
-                        }}
+                        fontSize='small'
+                        color={iconColor}
+                        sx={iconSx}
                     />
                 </Tooltip>
             </ListItemIcon>
             <ListItemText
-                primary={<Typography color="text.primary" fontWeight={500}>{rule.name}</Typography>}
+                primary={<Typography color='text.primary' fontWeight={500}>{rule.name}</Typography>}
                 secondary={
-                    <Typography variant="caption" color="text.secondary" sx={{ fontFamily: 'monospace' }}>
+                    <Typography variant='caption' color='text.secondary' sx={{ fontFamily: 'monospace' }}>
                         ID: {rule.id.substring(0, 8)}...
                     </Typography>
                 }
@@ -73,7 +92,6 @@ export function AutomationView() {
     const fetchDevices = useAppStore((state) => state.fetchDevices);
 
     const { rules, isLoading, deleteRule, refreshRules } = useRules();
-
     const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
     useEffect(() => {
@@ -85,7 +103,7 @@ export function AutomationView() {
     }, [fetchDevices]);
 
     useEffect(() => {
-        if (!isLoading && rules.length >= 0) {
+        if (!isLoading) {
             setHasLoadedOnce(true);
         }
     }, [isLoading, rules.length]);
@@ -93,8 +111,14 @@ export function AutomationView() {
     useEffect(() => {
         const interval = setInterval(() => {
             void refreshRules().catch(() => {});
-        }, 5000);
-        return () => clearInterval(interval);
+        }, REFRESH_INTERVAL_MS);
+        return () => {
+            clearInterval(interval);
+        };
+    }, [refreshRules]);
+
+    const handleRefresh = useCallback(() => {
+        void refreshRules();
     }, [refreshRules]);
 
     let content: React.ReactNode;
@@ -107,7 +131,7 @@ export function AutomationView() {
         );
     } else if (rules.length > 0) {
         content = (
-            <Paper variant="outlined" sx={{ background: 'rgba(0,0,0,0.2)', borderColor: 'rgba(255,255,255,0.1)' }}>
+            <Paper variant='outlined' sx={{ background: 'rgba(0,0,0,0.2)', borderColor: 'rgba(255,255,255,0.1)' }}>
                 <List disablePadding>
                     {rules.map((rule) => (
                         <RuleItem key={rule.id} rule={rule} onDelete={deleteRule} />
@@ -126,7 +150,7 @@ export function AutomationView() {
                     borderRadius: 2,
                 }}
             >
-                <Typography color="text.secondary">
+                <Typography color='text.secondary'>
                     No rules defined yet. Use the form below to create one.
                 </Typography>
             </Box>
@@ -134,7 +158,7 @@ export function AutomationView() {
     }
 
     return (
-        <Container maxWidth="xl">
+        <Container maxWidth='xl'>
             <Fade in timeout={800}>
                 <Box>
                     <Paper
@@ -161,16 +185,16 @@ export function AutomationView() {
                                 >
                                     <AccountTreeIcon sx={{ color: 'primary.main', fontSize: 28 }} />
                                 </Box>
-                                <Typography variant="h5" component="h1">
+                                <Typography variant='h5' component='h1'>
                                     Automation Rules
                                 </Typography>
                             </Box>
 
                             <Button
                                 startIcon={<RefreshIcon />}
-                                onClick={() => void refreshRules()}
-                                size="small"
-                                variant="outlined"
+                                onClick={handleRefresh}
+                                size='small'
+                                variant='outlined'
                             >
                                 Refresh
                             </Button>

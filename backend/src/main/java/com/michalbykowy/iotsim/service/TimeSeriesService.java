@@ -1,5 +1,6 @@
 package com.michalbykowy.iotsim.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.influxdb.client.InfluxDBClient;
@@ -26,32 +27,37 @@ import java.util.Optional;
 @Service
 public class TimeSeriesService {
     private static final Logger logger = LoggerFactory.getLogger(TimeSeriesService.class);
+    private static final String BUCKET_PARAM = "bucketParam";
+    private static final String RANGE_PARAM = "rangeParam";
+    private static final String MEASUREMENT_PARAM = "measurementParam";
+    private static final String DEVICE_ID_PARAM = "deviceIdParam";
+    private static final String FIELD_PARAM = "fieldParam";
+    private static final String START_PARAM = "startParam";
 
     private final InfluxDBClient influxDBClient;
     private final WriteApi writeApi;
     private final ObjectMapper objectMapper;
     private final String bucket;
+    private final String org;
 
     public TimeSeriesService(
             InfluxDBClient influxDBClient,
             WriteApi writeApi,
             ObjectMapper objectMapper,
-            @Value("${influx.bucket}") String bucket) {
+            @Value("${influx.bucket}") String bucket,
+            @Value("${influx.org}") String org) {
         this.influxDBClient = influxDBClient;
         this.writeApi = writeApi;
         this.objectMapper = objectMapper;
         this.bucket = bucket;
+        this.org = org;
     }
 
-    /**
-     * Executes a parameterized Flux query safely.
-     */
     private List<Map<String, Object>> executeParameterizedQuery(String fluxQuery, Map<String, Object> parameters) {
         logger.debug("Executing Flux query: {}", fluxQuery);
         try {
             QueryApi queryApi = influxDBClient.getQueryApi();
-
-            List<FluxTable> tables = queryApi.query(fluxQuery, null, parameters);
+            List<FluxTable> tables = queryApi.query(fluxQuery, org, parameters);
 
             List<Map<String, Object>> result = new ArrayList<>();
             for (FluxTable table : tables) {
@@ -60,7 +66,7 @@ public class TimeSeriesService {
                 }
             }
             return result;
-        } catch (Exception e) {
+        } catch (RuntimeException e) {
             logger.error("Failed to execute Flux query", e);
             return List.of();
         }
@@ -80,11 +86,16 @@ public class TimeSeriesService {
               |> """ + aggregateFunction.toFluxFunction() + "()";
 
         Map<String, Object> params = new HashMap<>();
-        params.put("bucketParam", bucket);
-        params.put("rangeParam", range.startsWith("-") ? range : "-" + range);
-        params.put("measurementParam", Measurement.SENSOR_READINGS.getValue());
-        params.put("deviceIdParam", deviceId);
-        params.put("fieldParam", field);
+        params.put(BUCKET_PARAM, bucket);
+
+        String rangeParam = range;
+        if (!range.startsWith("-")) {
+            rangeParam = "-" + range;
+        }
+        params.put(RANGE_PARAM, rangeParam);
+        params.put(MEASUREMENT_PARAM, Measurement.SENSOR_READINGS.getValue());
+        params.put(DEVICE_ID_PARAM, deviceId);
+        params.put(FIELD_PARAM, field);
 
         List<Map<String, Object>> result = executeParameterizedQuery(fluxQuery, params);
         return extractAggregateResult(result);
@@ -102,8 +113,6 @@ public class TimeSeriesService {
     }
 
     public List<Map<String, Object>> readSensorData(String deviceId, String start, String stop) {
-        String stopParam = (stop == null || stop.isEmpty()) ? "now()" : stop;
-
         String startParam = start;
         if (!start.startsWith("-") && !start.contains("T")) {
             startParam = "-" + start;
@@ -118,10 +127,10 @@ public class TimeSeriesService {
                 """;
 
         Map<String, Object> params = new HashMap<>();
-        params.put("bucketParam", bucket);
-        params.put("startParam", startParam);
-        params.put("measurementParam", Measurement.SENSOR_READINGS.getValue());
-        params.put("deviceIdParam", deviceId);
+        params.put(BUCKET_PARAM, bucket);
+        params.put(START_PARAM, startParam);
+        params.put(MEASUREMENT_PARAM, Measurement.SENSOR_READINGS.getValue());
+        params.put(DEVICE_ID_PARAM, deviceId);
 
         return executeParameterizedQuery(fluxQuery, params);
     }
@@ -129,7 +138,13 @@ public class TimeSeriesService {
     public void writeSensorData(String deviceId, String payloadJson) {
         try {
             JsonNode rootNode = objectMapper.readTree(payloadJson);
-            JsonNode sensorsNode = rootNode.path("sensors");
+            JsonNode sensorsNode;
+            if (rootNode.has("sensors")) {
+                sensorsNode = rootNode.get("sensors");
+            } else {
+                sensorsNode = rootNode;
+            }
+
             if (sensorsNode.isMissingNode() || !sensorsNode.isObject()) {
                 return;
             }
@@ -146,8 +161,10 @@ public class TimeSeriesService {
             if (point.hasFields()) {
                 writeApi.writePoint(point);
             }
-        } catch (Exception e) {
-            logger.error("INFLUXDB Error: {}", e.getMessage());
+        } catch (JsonProcessingException e) {
+            logger.error("INFLUXDB JSON Error: {}", e.getMessage());
+        } catch (RuntimeException e) {
+            logger.error("INFLUXDB Runtime Error: {}", e.getMessage());
         }
     }
 
@@ -168,9 +185,9 @@ public class TimeSeriesService {
                 """;
 
         Map<String, Object> params = new HashMap<>();
-        params.put("bucketParam", bucket);
-        params.put("rangeParam", rangeParam);
-        params.put("measurementParam", Measurement.SYSTEM_LOGS.getValue());
+        params.put(BUCKET_PARAM, bucket);
+        params.put(RANGE_PARAM, rangeParam);
+        params.put(MEASUREMENT_PARAM, Measurement.SYSTEM_LOGS.getValue());
 
         return executeParameterizedQuery(fluxQuery, params);
     }

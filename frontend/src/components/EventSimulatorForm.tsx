@@ -57,7 +57,7 @@ export function EventSimulatorForm({ devices }: EventSimulatorFormProps) {
         };
 
         try {
-            await apiClient('/api/events', {
+            await apiClient('EVENTS', {
                 method: 'POST',
                 body: eventPayload,
             });

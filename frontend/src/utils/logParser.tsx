@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import {Box, Typography} from '@mui/material';
+import { Box, Typography } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RuleIcon from '@mui/icons-material/Rule';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
@@ -7,6 +7,7 @@ import UpdateIcon from '@mui/icons-material/Update';
 import StorageIcon from '@mui/icons-material/Storage';
 
 const RADIX = 10;
+const FONT_WEIGHT_HIGHLIGHT = 600;
 export const OPACITY_DEFAULT = 1;
 const OPACITY_DIMMED = 0.5;
 const OPACITY_INFLUX = 0.7;
@@ -34,7 +35,7 @@ interface HighlightProps {
     readonly isName?: boolean;
 }
 
-const Highlight = ({children, color = 'text.primary', isName = false}: HighlightProps) => {
+const Highlight = ({ children, color = 'text.primary', isName = false }: HighlightProps) => {
     let actualColor = color;
     let fontWeight = 500;
     let bgcolor = 'transparent';
@@ -42,14 +43,14 @@ const Highlight = ({children, color = 'text.primary', isName = false}: Highlight
 
     if (isName) {
         actualColor = 'primary.main';
-        fontWeight = 600;
+        fontWeight = FONT_WEIGHT_HIGHLIGHT;
         bgcolor = 'rgba(96, 165, 250, 0.08)';
         px = 0.5;
     }
 
     return (
         <Typography
-            component="span"
+            component='span'
             sx={{
                 color: actualColor,
                 fontWeight,
@@ -76,7 +77,13 @@ const processMessageWithNames = (message: string, deviceNameMap: Map<string, str
         }
         const uuid = match[0];
         const name = deviceNameMap.get(uuid);
-        const displayText = name ? name : `${uuid.substring(0, 8)}...`;
+
+        let displayText: string;
+        if (name) {
+            displayText = name;
+        } else {
+            displayText = `${uuid.substring(0, 8)}...`;
+        }
 
         parts.push(
             <Highlight key={match.index} isName>
@@ -96,7 +103,7 @@ const processMessageWithNames = (message: string, deviceNameMap: Map<string, str
 type LogHandler = (match: RegExpMatchArray, deviceNameMap: Map<string, string>) => ParsedLogContent;
 
 const getEventChainContent: LogHandler = (match, deviceNameMap) => ({
-    icon: <PlayArrowIcon fontSize="small" color="info"/>,
+    icon: <PlayArrowIcon fontSize='small' color='info' />,
     content: <>Event Chain Start: <Highlight isName>{deviceNameMap.get(match[1]) ?? match[1]}</Highlight></>,
     details: null,
     isExpandable: false,
@@ -105,11 +112,19 @@ const getEventChainContent: LogHandler = (match, deviceNameMap) => ({
 
 const getRulesFoundContent: LogHandler = (match) => {
     const count = Number.parseInt(match[1], RADIX);
-    const color = count > 0 ? 'info' : 'disabled';
-    const opacity = count > 0 ? OPACITY_DEFAULT : OPACITY_DIMMED;
+    let color: 'info' | 'disabled';
+    let opacity: number;
+
+    if (count > 0) {
+        color = 'info';
+        opacity = OPACITY_DEFAULT;
+    } else {
+        color = 'disabled';
+        opacity = OPACITY_DIMMED;
+    }
 
     return {
-        icon: <RuleIcon fontSize="small" color={color}/>,
+        icon: <RuleIcon fontSize='small' color={color} />,
         content: <>{count} relevant rule(s) found</>,
         details: null,
         isExpandable: false,
@@ -118,8 +133,8 @@ const getRulesFoundContent: LogHandler = (match) => {
 };
 
 const getConditionMetContent: LogHandler = (match) => ({
-    icon: <CheckCircleIcon fontSize="small" color="success"/>,
-    content: <>Rule <Highlight color="success.main">&quot;{match[1]}&quot;</Highlight> triggered</>,
+    icon: <CheckCircleIcon fontSize='small' color='success' />,
+    content: <>Rule <Highlight color='success.main'>&quot;{match[1]}&quot;</Highlight> triggered</>,
     details: null,
     isExpandable: false,
     opacity: OPACITY_DEFAULT,
@@ -128,13 +143,13 @@ const getConditionMetContent: LogHandler = (match) => ({
 const getUpdatingContent: LogHandler = (match, deviceNameMap) => {
     let details: React.ReactNode;
     try {
-        details = <pre style={{margin: 0}}>{JSON.stringify(JSON.parse(match[2]), null, 2)}</pre>;
+        details = <pre style={{ margin: 0 }}>{JSON.stringify(JSON.parse(match[2]), null, 2)}</pre>;
     } catch {
-        details = <pre style={{margin: 0}}>{match[2]}</pre>;
+        details = <pre style={{ margin: 0 }}>{match[2]}</pre>;
     }
 
     return {
-        icon: <UpdateIcon fontSize="small" color="warning"/>,
+        icon: <UpdateIcon fontSize='small' color='warning' />,
         content: <>Updating device: <Highlight isName>{deviceNameMap.get(match[1]) ?? match[1]}</Highlight></>,
         details,
         isExpandable: true,
@@ -143,7 +158,7 @@ const getUpdatingContent: LogHandler = (match, deviceNameMap) => {
 };
 
 const getInfluxWriteContent: LogHandler = (match, deviceNameMap) => ({
-    icon: <StorageIcon fontSize="small" color="action"/>,
+    icon: <StorageIcon fontSize='small' color='action' />,
     content: <>Saved to DB: <Highlight isName>{deviceNameMap.get(match[1]) ?? match[1]}</Highlight></>,
     details: null,
     isExpandable: false,
@@ -158,32 +173,28 @@ const getFluxQueryContent: LogHandler = (match) => ({
             color: 'text.disabled',
             border: '1px solid',
             borderRadius: 0.5,
-            px: 0.5
+            px: 0.5,
         }}>
             FLUX
         </Box>
     ),
-    content: <Typography variant="body2" color="text.secondary">Aggregation Query Executed</Typography>,
-    details: <pre style={{margin: 0, whiteSpace: 'pre-wrap', color: '#a78bfa'}}>{match[1].trim()}</pre>,
+    content: <Typography variant='body2' color='text.secondary'>Aggregation Query Executed</Typography>,
+    details: <pre style={{ margin: 0, whiteSpace: 'pre-wrap', color: '#a78bfa' }}>{match[1].trim()}</pre>,
     isExpandable: true,
     opacity: OPACITY_DEFAULT,
 });
 
-
 const logHandlers: { regex: RegExp, handler: LogHandler }[] = [
-    {regex: patterns.EVENT_CHAIN, handler: getEventChainContent},
-    {regex: patterns.RULES_FOUND, handler: getRulesFoundContent},
-    {regex: patterns.CONDITION_MET, handler: getConditionMetContent},
-    {regex: patterns.UPDATING, handler: getUpdatingContent},
-    {regex: patterns.INFLUX_WRITE, handler: getInfluxWriteContent},
-    {regex: patterns.FLUX_QUERY, handler: getFluxQueryContent},
+    { regex: patterns.EVENT_CHAIN, handler: getEventChainContent },
+    { regex: patterns.RULES_FOUND, handler: getRulesFoundContent },
+    { regex: patterns.CONDITION_MET, handler: getConditionMetContent },
+    { regex: patterns.UPDATING, handler: getUpdatingContent },
+    { regex: patterns.INFLUX_WRITE, handler: getInfluxWriteContent },
+    { regex: patterns.FLUX_QUERY, handler: getFluxQueryContent },
 ];
 
-
 export function parseLogMessage(message: string, deviceNameMap: Map<string, string>): ParsedLogContent {
-
-
-    for (const {regex, handler} of logHandlers) {
+    for (const { regex, handler } of logHandlers) {
         const match = regex.exec(message);
         if (match) {
             return handler(match, deviceNameMap);

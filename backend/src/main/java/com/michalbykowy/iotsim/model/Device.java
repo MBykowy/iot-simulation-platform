@@ -1,10 +1,8 @@
 package com.michalbykowy.iotsim.model;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
-import jakarta.persistence.Id;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.michalbykowy.iotsim.model.converter.JsonAttributeConverter;
+import jakarta.persistence.*;
 
 @Entity
 public class Device {
@@ -19,11 +17,13 @@ public class Device {
     @Enumerated(EnumType.STRING)
     private DeviceRole role;
 
-    @Column(length = 1024)
-    private String currentState;
+    @Convert(converter = JsonAttributeConverter.class)
+    @Column(length = 4096)
+    private JsonNode currentState;
 
+    @Convert(converter = JsonAttributeConverter.class)
     @Column(columnDefinition = "TEXT")
-    private String simulationConfig;
+    private JsonNode simulationConfig;
 
     private boolean simulationActive;
     private Boolean online;
@@ -32,7 +32,8 @@ public class Device {
         this.online = false;
     }
 
-    public Device(String id, String name, DeviceType type, DeviceRole role, String currentState) {
+
+    public Device(String id, String name, DeviceType type, DeviceRole role, JsonNode currentState) {
         this.id = id;
         this.name = name;
         this.type = type;
@@ -40,6 +41,7 @@ public class Device {
         this.currentState = currentState;
         this.online = false;
     }
+
 
     public String getId() {
         return id;
@@ -62,25 +64,25 @@ public class Device {
 
     public void setType(DeviceType type) { this.type = type; }
 
-    public String getCurrentState() {
+    public JsonNode getCurrentState() {
         return currentState;
     }
 
-    public void setCurrentState(String currentState) {
+    public void setCurrentState(JsonNode currentState) {
         this.currentState = currentState;
+    }
+
+    public JsonNode getSimulationConfig() {
+        return simulationConfig;
+    }
+
+    public void setSimulationConfig(JsonNode simulationConfig) {
+        this.simulationConfig = simulationConfig;
     }
 
     public DeviceRole getRole() { return role; }
 
     public void setRole(DeviceRole role) { this.role = role; }
-
-    public String getSimulationConfig() {
-        return simulationConfig;
-    }
-
-    public void setSimulationConfig(String simulationConfig) {
-        this.simulationConfig = simulationConfig;
-    }
 
     public boolean isSimulationActive() {
         return simulationActive;

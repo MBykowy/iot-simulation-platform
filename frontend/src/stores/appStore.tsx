@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Device } from '../types';
+import { ApiEndpoint, type Device } from '../types';
 import { apiClient } from '../api/apiClient';
 
 export interface ChartDataPoint {
@@ -51,7 +51,7 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     fetchDevices: async () => {
         try {
-            const data = await apiClient<Device[]>('/api/devices', { method: 'GET' });
+            const data = await apiClient<Device[]>(ApiEndpoint.DEVICES, { method: 'GET' });
             if (Array.isArray(data)) {
                 set({ devices: data });
             } else {
@@ -74,14 +74,15 @@ export const useAppStore = create<AppState>((set, get) => ({
 
     // batch update
     updateDevicesBatch: (updates) => set((state) => {
-        if (updates.length === 0) return {};
+        if (updates.length === 0) {
+            return {};
+        }
 
         const deviceMap = new Map(state.devices.map(d => [d.id, d]));
         let hasChanges = false;
 
         updates.forEach(device => {
             const current = deviceMap.get(device.id);
-
 
             if (!current ||
                 current.currentState !== device.currentState ||
@@ -93,7 +94,9 @@ export const useAppStore = create<AppState>((set, get) => ({
             }
         });
 
-        if (!hasChanges) return {};
+        if (!hasChanges) {
+            return {};
+        }
 
         return { devices: Array.from(deviceMap.values()) };
     }),
@@ -132,7 +135,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     hideSnackbar: () => set((state) => ({ snackbar: { ...state.snackbar, open: false } })),
 
     themeMode: 'dark',
-    toggleThemeMode: () => set((state) => ({
-        themeMode: state.themeMode === 'light' ? 'dark' : 'light'
-    })),
+    toggleThemeMode: () => set((state) => {
+        let newThemeMode: 'light' | 'dark';
+        if (state.themeMode === 'light') {
+            newThemeMode = 'dark';
+        } else {
+            newThemeMode = 'light';
+        }
+        return {
+            themeMode: newThemeMode,
+        };
+    }),
 }));

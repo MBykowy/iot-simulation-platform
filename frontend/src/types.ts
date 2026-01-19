@@ -134,3 +134,10 @@ export interface InfluxLogRecord {
     result?: string;
     table?: number;
 }
+export enum ApiEndpoint {
+    DEVICES = '/api/devices',
+    RULES = '/api/rules',
+    EVENTS = '/api/events',
+    LOGS_HISTORY = '/api/logs/history',
+    HEALTH = '/api/health',
+}

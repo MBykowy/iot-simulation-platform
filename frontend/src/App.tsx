@@ -10,7 +10,7 @@ import { useAppStore } from './stores/appStore';
 import { darkTheme, lightTheme } from './theme';
 import { GlobalSnackbar } from './components/GlobalSnackbar';
 import { LogsView } from './views/LogsView';
-import type { Device } from './types';
+import { ApiEndpoint, type Device } from './types';
 
 const STORE_FLUSH_INTERVAL_MS = 100;
 
@@ -19,25 +19,36 @@ function App() {
     const { updateDevicesBatch, appendChartData } = useAppStore();
     const [isSystemReady, setIsSystemReady] = useState(false);
 
-    //buffer MQTT
+    // buffer MQTT
     const pendingDeviceUpdates = useRef<Map<string, Device>>(new Map());
 
     const themeMode = useAppStore((state) => state.themeMode);
-    const theme = themeMode === 'light' ? lightTheme : darkTheme;
 
-    //incoming data handler
+    let theme;
+    if (themeMode === 'light') {
+        theme = lightTheme;
+    } else {
+        theme = darkTheme;
+    }
+
+    // incoming data handler
     useEffect(() => {
         const subscription = subscriptionManager?.subscribe('/topic/devices', (message) => {
-            if (!message.body) return;
+            if (!message.body) {
+                return;
+            }
             try {
                 const updatedDevice: Device = JSON.parse(message.body);
-                //bypass store for performance
+                // bypass store for performance
                 appendChartData(updatedDevice);
                 pendingDeviceUpdates.current.set(updatedDevice.id, updatedDevice);
             } catch {
+                // ignore parsing errors
             }
         });
-        return () => subscription?.unsubscribe();
+        return () => {
+            subscription?.unsubscribe();
+        };
     }, [subscriptionManager, appendChartData]);
 
     // batch flusher
@@ -50,7 +61,9 @@ function App() {
             }
         }, STORE_FLUSH_INTERVAL_MS);
 
-        return () => clearInterval(intervalId);
+        return () => {
+            clearInterval(intervalId);
+        };
     }, [updateDevicesBatch]);
 
     // health check
@@ -58,14 +71,24 @@ function App() {
         let isMounted = true;
         const checkHealth = async () => {
             try {
-                const res = await fetch('/api/health');
+                const res = await fetch(ApiEndpoint.HEALTH);
                 if (res.ok) {
-                    if (isMounted) setIsSystemReady(true);
+                    if (isMounted) {
+                        setIsSystemReady(true);
+                    }
                 } else {
-                    if (isMounted) setTimeout(() => void checkHealth(), 1000);
+                    if (isMounted) {
+                        setTimeout(() => {
+                            void checkHealth();
+                        }, 1000);
+                    }
                 }
             } catch {
-                if (isMounted) setTimeout(() => void checkHealth(), 1000);
+                if (isMounted) {
+                    setTimeout(() => {
+                        void checkHealth();
+                    }, 1000);
+                }
             }
         };
         void checkHealth();

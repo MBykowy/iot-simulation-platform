@@ -1,16 +1,20 @@
 package com.michalbykowy.iotsim.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.michalbykowy.iotsim.dto.*;
+import com.michalbykowy.iotsim.dto.DeviceRequest;
+import com.michalbykowy.iotsim.dto.DeviceResponse;
+import com.michalbykowy.iotsim.dto.RuleRequest;
+import com.michalbykowy.iotsim.dto.RuleResponse;
+import com.michalbykowy.iotsim.dto.SimulationRequest;
+import com.michalbykowy.iotsim.dto.UpdateDeviceRequest;
 import com.michalbykowy.iotsim.model.Device;
 import com.michalbykowy.iotsim.model.Rule;
 import com.michalbykowy.iotsim.service.DeviceService;
 import com.michalbykowy.iotsim.service.RuleService;
 import com.michalbykowy.iotsim.service.TimeSeriesService;
+import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import jakarta.validation.Valid;
-
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -32,22 +36,32 @@ public class ApiController {
     private final RuleService ruleService;
     private final TimeSeriesService timeSeriesService;
 
-    public ApiController(DeviceService deviceService, RuleService ruleService, TimeSeriesService timeSeriesService) {
+    public ApiController(DeviceService deviceService,
+                         RuleService ruleService,
+                         TimeSeriesService timeSeriesService) {
         this.deviceService = deviceService;
         this.ruleService = ruleService;
         this.timeSeriesService = timeSeriesService;
     }
 
     private DeviceResponse mapToDto(Device device) {
-        boolean isOnline = device.isOnline() != null && device.isOnline();
+        String simulationConfig = null;
+        if (device.getSimulationConfig() != null) {
+            simulationConfig = device.getSimulationConfig().toString();
+        }
+
+        boolean isOnline = false;
+        if (device.isOnline() != null) {
+            isOnline = device.isOnline();
+        }
 
         return new DeviceResponse(
                 device.getId(),
                 device.getName(),
                 device.getType(),
                 device.getRole(),
-                device.getCurrentState(),
-                device.getSimulationConfig(),
+                device.getCurrentState().toString(),
+                simulationConfig,
                 device.isSimulationActive(),
                 isOnline
         );
@@ -98,7 +112,8 @@ public class ApiController {
     }
 
     @PostMapping("/rules")
-    public ResponseEntity<RuleResponse> createRule(@Valid @RequestBody RuleRequest ruleRequest) throws JsonProcessingException {
+    public ResponseEntity<RuleResponse> createRule(
+            @Valid @RequestBody RuleRequest ruleRequest) throws JsonProcessingException {
         Rule savedRule = ruleService.createRule(ruleRequest);
         return new ResponseEntity<>(mapToDto(savedRule), HttpStatus.CREATED);
     }

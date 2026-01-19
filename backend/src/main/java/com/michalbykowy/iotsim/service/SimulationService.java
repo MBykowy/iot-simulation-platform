@@ -1,8 +1,8 @@
 package com.michalbykowy.iotsim.service;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.jayway.jsonpath.JsonPath;
-import com.jayway.jsonpath.PathNotFoundException;
 import com.michalbykowy.iotsim.event.DeviceCommandEvent;
 import com.michalbykowy.iotsim.model.Device;
 import com.michalbykowy.iotsim.model.Rule;
@@ -20,6 +20,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 
@@ -65,24 +66,23 @@ public class SimulationService {
 
         List<Rule> applicableRules = ruleRepository.findByTriggerDeviceId(changedDevice.getId());
 
-
         for (Rule rule : applicableRules) {
             boolean isConditionMet = isRuleTriggered(rule, changedDevice);
             boolean wasActive = rule.isActive();
 
             if (isConditionMet && !wasActive) {
-                // rising edge
+                // rising edge - active rule
                 logger.info("SIM ENGINE: Rule '{}' ACTIVATED. Executing action.", rule.getName());
-
                 executeRuleAction(rule, currentDepth);
                 rule.setActive(true);
                 ruleRepository.save(rule);
-
             } else if (!isConditionMet && wasActive) {
-                // falling edge
+                // falling edge - deactive rule
                 logger.info("SIM ENGINE: Rule '{}' DEACTIVATED (Reset).", rule.getName());
                 rule.setActive(false);
                 ruleRepository.save(rule);
+            } else {
+                // No state change
             }
         }
     }
@@ -99,14 +99,13 @@ public class SimulationService {
     private boolean isRuleTriggered(Rule rule, Device device) {
         try {
             RuleTrigger trigger = parseTriggerConfig(rule);
-
             if (isAggregateCondition(trigger)) {
                 return checkAggregateCondition(trigger, device);
             } else {
                 return checkStateCondition(trigger, device);
             }
-        } catch (Exception e) {
-            logger.error("SIM ENGINE: Error evaluating rule {}: {}", rule.getId(), e.getMessage());
+        } catch (IOException e) {
+            logger.error("SIM ENGINE: Error parsing or evaluating rule {}: {}", rule.getId(), e.getMessage());
             return false;
         }
     }
@@ -115,34 +114,34 @@ public class SimulationService {
         try {
             RuleAction action = parseActionConfig(rule);
             updateTargetDevice(action, currentDepth);
-        } catch (Exception e) {
+        } catch (IOException e) {
             logger.error("SIM ENGINE: Error executing action for rule {}: {}", rule.getId(), e.getMessage());
         }
     }
 
-    private void updateTargetDevice(RuleAction action, int currentDepth) throws Exception {
+    private void updateTargetDevice(RuleAction action, int currentDepth) throws JsonProcessingException {
         String targetDeviceId = action.deviceId();
-        String newStateJson = objectMapper.writeValueAsString(action.newState());
+        JsonNode newStateNode = action.newState();
+
+        String newStateJson = objectMapper.writeValueAsString(newStateNode);
 
         logger.info("SIM ENGINE: Rule triggered. Queuing command for {}: {}", targetDeviceId, newStateJson);
 
         eventPublisher.publishEvent(new DeviceCommandEvent(targetDeviceId, newStateJson));
 
-        deviceRepository.findById(targetDeviceId).ifPresent(targetDevice -> {
-            targetDevice.setCurrentState(newStateJson);
+        deviceRepository.findById(targetDeviceId).ifPresent((Device targetDevice) -> {
+            targetDevice.setCurrentState(newStateNode);
             Device updatedDevice = deviceRepository.save(targetDevice);
             messagingTemplate.convertAndSend("/topic/devices", updatedDevice);
-
-            // Recurse
             evaluateRulesRecursively(updatedDevice, currentDepth + 1);
         });
     }
 
-    private RuleTrigger parseTriggerConfig(Rule rule) throws Exception {
+    private RuleTrigger parseTriggerConfig(Rule rule) throws IOException {
         return objectMapper.readValue(rule.getTriggerConfig(), RuleTrigger.class);
     }
 
-    private RuleAction parseActionConfig(Rule rule) throws Exception {
+    private RuleAction parseActionConfig(Rule rule) throws IOException {
         return objectMapper.readValue(rule.getActionConfig(), RuleAction.class);
     }
 
@@ -151,15 +150,16 @@ public class SimulationService {
     }
 
     private boolean checkStateCondition(RuleTrigger trigger, Device device) {
-        try {
-            Object actualValue = JsonPath.read(device.getCurrentState(), trigger.path());
-            return compareValues(actualValue, trigger);
-        } catch (PathNotFoundException e) {
-            logger.debug("Rule evaluation skipped: Path '{}' not found in state: {}",
-                    trigger.path(), device.getCurrentState());
+        JsonNode state = device.getCurrentState();
+        String jacksonPath = trigger.path().replace("$.", "/").replace(".", "/");
+        JsonNode valueNode = state.at(jacksonPath);
+
+        if (valueNode.isMissingNode()) {
             return false;
         }
+        return compareValues(valueNode.asText(), trigger);
     }
+
     private boolean checkAggregateCondition(RuleTrigger trigger, Device device) {
         Optional<Double> aggregateValueOpt = timeSeriesService.queryAggregate(
                 device.getId(),

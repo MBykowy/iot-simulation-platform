@@ -16,9 +16,9 @@ import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -39,16 +39,17 @@ class FluxInjectionTest {
     @Test
     void queryAggregate_ShouldUseParameterizedQuery_WhenInputContainsSpecialChars() {
         ReflectionTestUtils.setField(timeSeriesService, "bucket", "test_bucket");
+        ReflectionTestUtils.setField(timeSeriesService, "org", "test_org");
 
         when(influxDBClient.getQueryApi()).thenReturn(queryApi);
-        when(queryApi.query(anyString(), any(), anyMap())).thenReturn(List.of());
+        when(queryApi.query(anyString(), anyString(), anyMap())).thenReturn(List.of());
 
         String maliciousId = "device01\") |> drop(bucket: \"test_bucket";
 
-        timeSeriesService.queryAggregate(
+        Optional<Double> result = timeSeriesService.queryAggregate(
                 maliciousId,
                 "temperature",
-                "1h",
+                "-1h",
                 AggregateFunction.MEAN
         );
 
@@ -56,16 +57,31 @@ class FluxInjectionTest {
         @SuppressWarnings("unchecked")
         ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
 
-        // Capture arguments passed to InfluxDB
-        verify(queryApi).query(queryCaptor.capture(), any(), paramsCaptor.capture());
+        verify(queryApi).query(queryCaptor.capture(), anyString(), paramsCaptor.capture());
 
         String executedQuery = queryCaptor.getValue();
         Map<String, Object> executedParams = paramsCaptor.getValue();
 
-        assertFalse(executedQuery.contains(maliciousId),
-                "Injection Failed: Raw input found in query string. It should be parameterized.");
+        assertFalse(executedQuery.contains(maliciousId), "Injection Failed: Raw input found in query string.");
+        assertEquals(maliciousId, executedParams.get("deviceIdParam"), "Input should be a parameter.");
 
-        assertEquals(maliciousId, executedParams.get("deviceIdParam"),
-                "The input should be passed safely as a parameter.");
+        assertTrue(result.isEmpty(), "Result should be empty when query returns no data.");
+    }
+
+    @Test
+    void queryAggregate_ShouldPrependDashToRange_WhenMissing() {
+        ReflectionTestUtils.setField(timeSeriesService, "bucket", "test_bucket");
+        ReflectionTestUtils.setField(timeSeriesService, "org", "test_org");
+        when(influxDBClient.getQueryApi()).thenReturn(queryApi);
+
+        timeSeriesService.queryAggregate("dev-1", "temp", "5m", AggregateFunction.COUNT);
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(queryApi).query(anyString(), anyString(), paramsCaptor.capture());
+
+        Map<String, Object> params = paramsCaptor.getValue();
+
+        assertEquals("-5m", params.get("rangeParam"));
     }
 }

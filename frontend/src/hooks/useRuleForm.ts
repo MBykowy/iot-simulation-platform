@@ -76,7 +76,7 @@ export function useRuleForm(onRuleAdded: () => void) {
                 path: formData.triggerPath,
                 operator: formData.triggerOperator,
                 value: formData.triggerValue,
-                field: formData.triggerPath
+                field: formData.triggerPath,
             };
         }
 
@@ -96,7 +96,7 @@ export function useRuleForm(onRuleAdded: () => void) {
         const newRule = { name: formData.name, triggerConfig, actionConfig };
 
         try {
-            const result = await apiClient('/api/rules', {
+            const result = await apiClient('RULES', {
                 method: 'POST',
                 body: newRule,
             });

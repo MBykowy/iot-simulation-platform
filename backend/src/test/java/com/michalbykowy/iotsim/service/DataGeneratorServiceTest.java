@@ -10,18 +10,13 @@ import com.michalbykowy.iotsim.service.generator.GeneratorStrategy;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Captor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.scheduling.TaskScheduler;
-import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
 import static org.mockito.ArgumentMatchers.any;
@@ -39,14 +34,8 @@ class DataGeneratorServiceTest {
     private DataGeneratorService dataGeneratorService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    private final ThreadPoolTaskScheduler realScheduler = new ThreadPoolTaskScheduler();
-
-    @Captor
-    private ArgumentCaptor<Runnable> runnableCaptor;
-
     @BeforeEach
     void setUp() {
-        realScheduler.initialize();
         Map<String, GeneratorStrategy> strategies = Map.of("SINE", mockStrategy);
 
         dataGeneratorService = new DataGeneratorService(
@@ -59,15 +48,16 @@ class DataGeneratorServiceTest {
     }
 
     @Test
-    void generateDataTick_ShouldGenerateData_WhenIntervalElapsed() throws Exception {
+    void generateDataTick_ShouldGenerateData_WhenIntervalElapsed() {
         Device activeDevice = new Device();
         activeDevice.setId("dev-1");
         activeDevice.setSimulationActive(true);
 
-        SimulationRequest config = new SimulationRequest(0, Map.of(
+        SimulationRequest config = new SimulationRequest(1000, Map.of(
                 "temp", new SimulationFieldConfig(SimulationPattern.SINE, Map.of())
         ), null);
-        activeDevice.setSimulationConfig(objectMapper.writeValueAsString(config));
+
+        activeDevice.setSimulationConfig(objectMapper.valueToTree(config));
 
         when(deviceRepository.findBySimulationActive(true)).thenReturn(List.of(activeDevice));
         when(mockStrategy.generate(any())).thenReturn(25.5);
@@ -84,17 +74,18 @@ class DataGeneratorServiceTest {
     }
 
     @Test
-    void generateDataTick_ShouldSurviveException_WhenOneDeviceFails() throws Exception {
+    void generateDataTick_ShouldSurviveException_WhenOneDeviceFails() {
         Device brokenDevice = new Device();
         brokenDevice.setId("broken");
         brokenDevice.setSimulationActive(true);
-        brokenDevice.setSimulationConfig("{ NOT JSON }");
+        brokenDevice.setSimulationConfig(objectMapper.createObjectNode());
 
         Device validDevice = new Device();
         validDevice.setId("valid");
         validDevice.setSimulationActive(true);
-        validDevice.setSimulationConfig(objectMapper.writeValueAsString(
-                new SimulationRequest(0, Map.of("temp", new SimulationFieldConfig(SimulationPattern.SINE, Map.of())), null)
+
+        validDevice.setSimulationConfig(objectMapper.valueToTree(
+                new SimulationRequest(1000, Map.of("temp", new SimulationFieldConfig(SimulationPattern.SINE, Map.of())), null)
         ));
 
         when(deviceRepository.findBySimulationActive(true)).thenReturn(List.of(brokenDevice, validDevice));
@@ -104,9 +95,11 @@ class DataGeneratorServiceTest {
 
         // wait for the async to complete
         await().atMost(Duration.ofSeconds(1)).untilAsserted(() -> {
+            // valid device should be processed
             verify(deviceService, times(1)).handleDeviceEvent(argThat(map ->
                     map.get("deviceId").equals("valid")
             ));
+            // bad device should not trigger event (service catches exception)
             verify(deviceService, never()).handleDeviceEvent(argThat(map ->
                     map.get("deviceId").equals("broken")
             ));

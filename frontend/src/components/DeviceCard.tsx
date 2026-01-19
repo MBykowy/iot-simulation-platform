@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { ReactNode, MouseEvent } from 'react';
 import type { Device } from '../types';
 import { Box, Card, CardContent, Chip, IconButton, Stack, Tooltip, Typography } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -11,6 +11,8 @@ import { useDeviceActions } from '../hooks/useDeviceActions';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import CircleIcon from '@mui/icons-material/Circle';
 
+const ONLINE_COLOR = '#4caf50';
+const OFFLINE_COLOR = '#f44336';
 
 interface DeviceCardProps {
     readonly device: Device;
@@ -23,14 +25,19 @@ interface DeviceCardProps {
 export function DeviceCard({ device, onHistoryClick, onSimulateClick, onCommandClick }: DeviceCardProps) {
     const { renameDevice, deleteDevice } = useDeviceActions();
 
-    const handleRename = (event: React.MouseEvent) => {
+    const handleRename = (event: MouseEvent) => {
         event.stopPropagation();
         renameDevice(device.id, device.name);
     };
 
-    const handleDelete = (event: React.MouseEvent) => {
+    const handleDelete = (event: MouseEvent) => {
         event.stopPropagation();
         deleteDevice(device.id, device.name);
+    };
+
+    const handleCommandClick = (event: MouseEvent) => {
+        event.stopPropagation();
+        onCommandClick();
     };
 
     const parseState = (state: string): string => {
@@ -43,9 +50,9 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onCommandC
 
     let roleIcon: ReactNode;
     if (device.role === 'SENSOR') {
-        roleIcon = <SensorsIcon color="primary" />;
+        roleIcon = <SensorsIcon color='primary' />;
     } else {
-        roleIcon = <LightbulbIcon color="secondary" />;
+        roleIcon = <LightbulbIcon color='secondary' />;
     }
 
     let simulationButtonColor: 'secondary' | 'default';
@@ -62,39 +69,52 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onCommandC
         simulationIconSx = {};
     }
 
+    let onlineTooltip: string;
+    let onlineStatusSx;
+    if (device.online) {
+        onlineTooltip = 'Online';
+        onlineStatusSx = {
+            width: 12,
+            height: 12,
+            color: ONLINE_COLOR,
+            filter: `drop-shadow(0 0 2px ${ONLINE_COLOR})`,
+        };
+    } else {
+        onlineTooltip = 'Offline';
+        onlineStatusSx = {
+            width: 12,
+            height: 12,
+            color: OFFLINE_COLOR,
+            filter: 'none',
+        };
+    }
+
     return (
         <Card sx={{ display: 'flex', flexDirection: 'column', height: '100%', position: 'relative' }}>
             <CardContent sx={{ flexGrow: 1 }}>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
-                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                <Stack direction='row' justifyContent='space-between' alignItems='center' mb={1}>
+                    <Stack direction='row' alignItems='center' spacing={1.5}>
                         {roleIcon}
-                        <Typography variant="h6" component="div" noWrap>
+                        <Typography variant='h6' component='div' noWrap>
                             {device.name}
                         </Typography>
                     </Stack>
 
-                    <Tooltip title={device.online ? "Online" : "Offline"}>
-                        <CircleIcon
-                            sx={{
-                                width: 12,
-                                height: 12,
-                                color: device.online ? '#4caf50' : '#f44336', // Green or Red
-                                filter: device.online ? 'drop-shadow(0 0 2px #4caf50)' : 'none'
-                            }}
-                        />
+                    <Tooltip title={onlineTooltip}>
+                        <CircleIcon sx={onlineStatusSx} />
                     </Tooltip>
                     <Chip
                         label={device.type.charAt(0)}
-                        size="small"
+                        size='small'
                         title={device.type}
                         sx={{ fontWeight: 'bold' }}
                     />
                 </Stack>
-                <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1.5 }}>
+                <Typography variant='caption' color='text.secondary' sx={{ display: 'block', mb: 1.5 }}>
                     ID: {device.id}
                 </Typography>
                 <Box
-                    component="pre"
+                    component='pre'
                     sx={{
                         bgcolor: 'action.hover',
                         p: 1.5,
@@ -111,40 +131,40 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onCommandC
                 </Box>
             </CardContent>
             <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', borderTop: 1, borderColor: 'divider' }}>
-                <Stack direction="row" spacing={0.5}>
-                    <Tooltip title="Rename">
-                        <IconButton size="small" onClick={handleRename}>
-                            <EditIcon fontSize="small" />
+                <Stack direction='row' spacing={0.5}>
+                    <Tooltip title='Rename'>
+                        <IconButton size='small' onClick={handleRename}>
+                            <EditIcon fontSize='small' />
                         </IconButton>
                     </Tooltip>
-                    <Tooltip title="Delete">
-                        <IconButton size="small" onClick={handleDelete}>
-                            <DeleteIcon fontSize="small" />
+                    <Tooltip title='Delete'>
+                        <IconButton size='small' onClick={handleDelete}>
+                            <DeleteIcon fontSize='small' />
                         </IconButton>
                     </Tooltip>
                     {(device.role === 'ACTUATOR' || device.type === 'PHYSICAL') && (
-                        <Tooltip title="Send Command">
-                            <IconButton size="small" onClick={(e) => { e.stopPropagation(); onCommandClick(); }} color="secondary">
-                                <PowerSettingsNewIcon fontSize="small" />
+                        <Tooltip title='Send Command'>
+                            <IconButton size='small' onClick={handleCommandClick} color='secondary'>
+                                <PowerSettingsNewIcon fontSize='small' />
                             </IconButton>
                         </Tooltip>
                     )}
                 </Stack>
-                <Stack direction="row" spacing={0.5}>
+                <Stack direction='row' spacing={0.5}>
                     {device.type === 'VIRTUAL' && (
-                        <Tooltip title="Configure Simulation">
+                        <Tooltip title='Configure Simulation'>
                             <IconButton
-                                size="small"
+                                size='small'
                                 onClick={onSimulateClick}
                                 color={simulationButtonColor}
                             >
-                                <AutoAwesomeIcon fontSize="small" sx={simulationIconSx} />
+                                <AutoAwesomeIcon fontSize='small' sx={simulationIconSx} />
                             </IconButton>
                         </Tooltip>
                     )}
-                    <Tooltip title="View History">
-                        <IconButton size="small" onClick={onHistoryClick}>
-                            <HistoryIcon fontSize="small" />
+                    <Tooltip title='View History'>
+                        <IconButton size='small' onClick={onHistoryClick}>
+                            <HistoryIcon fontSize='small' />
                         </IconButton>
                     </Tooltip>
                 </Stack>

@@ -32,12 +32,12 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -85,15 +85,15 @@ class EndToEndIntegrationTest {
 
     @Test
     void fullPipeline_ShouldPersistToInflux_And_PushToWebSocket() throws Exception {
-        String deviceId = "docker-test-" + UUID.randomUUID();
+        String deviceId = "e2e-test-device";
         String jsonPayload = "{\"sensors\": {\"temp\": 42.5}}";
         String topic = "iot/devices/" + deviceId + "/data";
 
-        // websocket subscriber (sim frontend)
         BlockingQueue<DeviceResponse> blockingQueue = new LinkedBlockingQueue<>();
         String wsUrl = "ws://localhost:" + port + "/ws";
 
-        StompSession session = stompClient.connectAsync(wsUrl, new StompSessionHandlerAdapter() {}).get(5, TimeUnit.SECONDS);
+        StompSession session = stompClient.connectAsync(wsUrl, new StompSessionHandlerAdapter() {
+        }).get(5, TimeUnit.SECONDS);
 
         session.subscribe("/topic/devices", new StompFrameHandler() {
             @Override
@@ -107,25 +107,21 @@ class EndToEndIntegrationTest {
             }
         });
 
-        // MQTT Message
         String brokerUrl = "tcp://" + mosquitto.getHost() + ":" + mosquitto.getMappedPort(1883);
         MqttClient client = new MqttClient(brokerUrl, "test-sender");
         client.connect();
         client.publish(topic, new MqttMessage(jsonPayload.getBytes(StandardCharsets.UTF_8)));
         client.disconnect();
 
-        // check if websocket received update
         DeviceResponse receivedUpdate = blockingQueue.poll(5, TimeUnit.SECONDS);
         assertNotNull(receivedUpdate, "Frontend did not receive WebSocket update!");
-        assertTrue(receivedUpdate.id().equals(deviceId));
+        assertEquals(deviceId, receivedUpdate.id());
         assertTrue(receivedUpdate.currentState().contains("42.5"));
 
-        // check SQLite
         await().atMost(Duration.ofSeconds(5)).until(() ->
                 deviceRepository.existsById(deviceId)
         );
 
-        // check InfluxDB timeseries
         try (InfluxDBClient testClient = InfluxDBClientFactory.create(
                 influxDB.getUrl(),
                 "my-super-secret-token".toCharArray(),
@@ -135,8 +131,8 @@ class EndToEndIntegrationTest {
             String query = String.format("from(bucket: \"device_data\") |> range(start: -1h) |> filter(fn: (r) => r.deviceId == \"%s\")", deviceId);
 
             await().atMost(Duration.ofSeconds(5)).until(() -> {
-                List<FluxTable> tables = testClient.getQueryApi().query(query);
-                return !tables.isEmpty() && tables.get(0).getRecords().size() > 0;
+                List<FluxTable> tables = testClient.getQueryApi().query(query, "iot-project");
+                return !tables.isEmpty() && !tables.get(0).getRecords().isEmpty();
             });
         }
     }

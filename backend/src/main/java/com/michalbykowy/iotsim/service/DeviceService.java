@@ -4,15 +4,21 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.michalbykowy.iotsim.api.exception.ResourceNotFoundException;
-import com.michalbykowy.iotsim.integration.MqttGateway;
 import com.michalbykowy.iotsim.dto.DeviceRequest;
+import com.michalbykowy.iotsim.dto.DeviceResponse;
 import com.michalbykowy.iotsim.dto.SimulationRequest;
+import com.michalbykowy.iotsim.dto.SimulationFieldConfig;
+import com.michalbykowy.iotsim.event.VirtualDeviceCommandLoopbackEvent;
+import com.michalbykowy.iotsim.integration.MqttGateway;
 import com.michalbykowy.iotsim.model.Device;
 import com.michalbykowy.iotsim.model.DeviceRole;
 import com.michalbykowy.iotsim.model.DeviceType;
+import com.michalbykowy.iotsim.model.SimulationPattern;
 import com.michalbykowy.iotsim.repository.DeviceRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +39,7 @@ public class DeviceService {
     private final TimeSeriesService timeSeriesService;
     private final ConcurrentHashMap<String, Long> lastUpdateSent;
     private final MqttGateway mqttGateway;
+    private final ApplicationEventPublisher eventPublisher;
 
     private static final long UPDATE_THRESHOLD_MS = 500;
     private static final String DEVICE_NOT_FOUND_MESSAGE = "Device not found with id: ";
@@ -46,7 +53,8 @@ public class DeviceService {
             SimulationService simulationService,
             ObjectMapper objectMapper,
             TimeSeriesService timeSeriesService,
-            MqttGateway mqttGateway) {
+            MqttGateway mqttGateway,
+            ApplicationEventPublisher eventPublisher) {
         this.deviceRepository = deviceRepository;
         this.messagingTemplate = messagingTemplate;
         this.simulationService = simulationService;
@@ -54,6 +62,7 @@ public class DeviceService {
         this.timeSeriesService = timeSeriesService;
         this.mqttGateway = mqttGateway;
         this.lastUpdateSent = new ConcurrentHashMap<>();
+        this.eventPublisher = eventPublisher;
     }
 
     public List<Device> getAllDevices() {
@@ -67,13 +76,12 @@ public class DeviceService {
                 deviceRequest.name(),
                 deviceRequest.type(),
                 deviceRequest.role(),
-                "{}"
+                objectMapper.createObjectNode()
         );
         Device savedDevice = deviceRepository.save(newDevice);
-        messagingTemplate.convertAndSend(TOPIC_DEVICES, savedDevice);
+        messagingTemplate.convertAndSend(TOPIC_DEVICES, mapToDto(savedDevice));
         return savedDevice;
     }
-
 
     @Transactional
     public Device updateDeviceName(String deviceId, String newName) {
@@ -83,7 +91,7 @@ public class DeviceService {
         device.setName(newName);
         Device savedDevice = deviceRepository.save(device);
 
-        messagingTemplate.convertAndSend(TOPIC_DEVICES, savedDevice);
+        messagingTemplate.convertAndSend(TOPIC_DEVICES, mapToDto(savedDevice));
         return savedDevice;
     }
 
@@ -98,59 +106,51 @@ public class DeviceService {
 
     @Transactional
     public void updateDeviceStatus(String deviceId, boolean isOnline) {
-        deviceRepository.findById(deviceId).ifPresent(device -> {
-            if (!Boolean.valueOf(isOnline).equals(device.isOnline())) {
-                device.setOnline(isOnline);
-                Device saved = deviceRepository.save(device);
-                messagingTemplate.convertAndSend(TOPIC_DEVICES, saved);
-                logger.info("Device {} is now {}", deviceId, isOnline ? "ONLINE" : "OFFLINE");
-            }
-        });
+        deviceRepository.findById(deviceId)
+                .ifPresent(device -> updateAndNotifyDeviceStatus(device, isOnline));
+    }
+
+    private void updateAndNotifyDeviceStatus(Device device, boolean isOnline) {
+        if (!Boolean.valueOf(isOnline).equals(device.isOnline())) {
+            device.setOnline(isOnline);
+            Device saved = deviceRepository.save(device);
+            messagingTemplate.convertAndSend(TOPIC_DEVICES, mapToDto(saved));
+
+            String status = isOnline ? "ONLINE" : "OFFLINE";
+            logger.info("Device {} is now {}", device.getId(), status);
+        }
     }
 
     private void validateSimulationRequest(SimulationRequest request) {
-        if (request.intervalMs() <= 0) {
-            throw new IllegalArgumentException("Interval must be positive.");
-        }
-        if (request.networkProfile() != null) {
-            if (request.networkProfile().latencyMs() < 0) {
-                throw new IllegalArgumentException("Latency cannot be negative.");
-            }
-            if (request.networkProfile().packetLossPercent() < 0 || request.networkProfile().packetLossPercent() > 100) {
-                throw new IllegalArgumentException("Packet loss must be between 0 and 100.");
-            }
-        }
-
-        request.fields().forEach((fieldName, config) -> {
+        for (Map.Entry<String, SimulationFieldConfig> entry : request.fields().entrySet()) {
+            String fieldName = entry.getKey();
+            SimulationFieldConfig config = entry.getValue();
             Map<String, Object> params = config.parameters();
 
-            switch (config.pattern()) {
-                case SINE -> {
-                    if (getNumber(params, "period") <= 0) {
-                        throw new IllegalArgumentException("Field '" + fieldName + "': Period must be positive.");
-                    }
+            if (config.pattern() == SimulationPattern.SINE) {
+                if (getNumber(params, "period") <= 0) {
+                    throw new IllegalArgumentException("Field '" + fieldName + "': Period must be positive.");
                 }
-                case RANDOM -> {
-                    double min = getNumber(params, "min");
-                    double max = getNumber(params, "max");
-                    if (min >= max) {
-                        throw new IllegalArgumentException("Field '" + fieldName + "': Min must be less than Max.");
-                    }
+            } else if (config.pattern() == SimulationPattern.RANDOM) {
+                double min = getNumber(params, "min");
+                double max = getNumber(params, "max");
+                if (min >= max) {
+                    throw new IllegalArgumentException("Field '" + fieldName + "': Min must be less than Max.");
                 }
             }
-        });
+        }
     }
 
     private double getNumber(Map<String, Object> params, String key) {
         Object val = params.get(key);
-        if (val instanceof Number n) {
-            return n.doubleValue();
+        if (!(val instanceof Number n)) {
+            return 0.0;
         }
-        return 0.0;
+        return n.doubleValue();
     }
 
     @Transactional
-    public Device configureSimulation(String deviceId, SimulationRequest request) throws JsonProcessingException {
+    public Device configureSimulation(String deviceId, SimulationRequest request) {
         validateSimulationRequest(request);
 
         Device device = deviceRepository.findById(deviceId)
@@ -160,12 +160,12 @@ public class DeviceService {
             throw new IllegalArgumentException("Simulation can only be configured for VIRTUAL devices.");
         }
 
-        String configJson = objectMapper.writeValueAsString(request);
-        device.setSimulationConfig(configJson);
+        JsonNode configNode = objectMapper.valueToTree(request);
+        device.setSimulationConfig(configNode);
         device.setSimulationActive(true);
 
         Device savedDevice = deviceRepository.save(device);
-        messagingTemplate.convertAndSend(TOPIC_DEVICES, savedDevice);
+        messagingTemplate.convertAndSend(TOPIC_DEVICES, mapToDto(savedDevice));
         return savedDevice;
     }
 
@@ -177,7 +177,7 @@ public class DeviceService {
         device.setSimulationActive(false);
         Device savedDevice = deviceRepository.save(device);
 
-        messagingTemplate.convertAndSend(TOPIC_DEVICES, savedDevice);
+        messagingTemplate.convertAndSend(TOPIC_DEVICES, mapToDto(savedDevice));
 
         return savedDevice;
     }
@@ -185,57 +185,50 @@ public class DeviceService {
     @Transactional
     public Device handleDeviceEvent(Map<String, Object> payload) {
         String deviceId = (String) payload.get("deviceId");
-        String rawState = (String) payload.get("state");
-        String finalState;
-        String fullPayloadForInflux = rawState;
-        JsonNode rootNode;
+        Object stateObj = payload.get("state");
 
+        JsonNode newStateNode;
         try {
-            rootNode = objectMapper.readTree(rawState);
-            if (rootNode.has(SENSORS_KEY) && rootNode.get(SENSORS_KEY).isObject()) {
-                finalState = rootNode.get(SENSORS_KEY).toString();
-                logger.debug("Detected MQTT payload with 'sensors' object for deviceId: {}", deviceId);
+            if (stateObj instanceof String str) {
+                newStateNode = objectMapper.readTree(str);
             } else {
-                finalState = rawState;
+                newStateNode = objectMapper.valueToTree(stateObj);
             }
         } catch (JsonProcessingException e) {
-            logger.debug("Could not parse JSON state for deviceId: {}. Using raw state.", deviceId, e);
-            finalState = rawState;
-            rootNode = objectMapper.createObjectNode();
+            logger.debug("Could not parse JSON state for deviceId: {}. Using empty.", deviceId, e);
+            newStateNode = objectMapper.createObjectNode();
         }
 
-        final JsonNode finalRootNode = rootNode;
+        if (newStateNode.has(SENSORS_KEY) && newStateNode.get(SENSORS_KEY).isObject()) {
+            newStateNode = newStateNode.get(SENSORS_KEY);
+            logger.debug("Detected MQTT payload with 'sensors' object for deviceId: {}", deviceId);
+        }
 
+        JsonNode finalNewStateNode = newStateNode;
         Device device = deviceRepository.findById(deviceId)
-                .orElseGet(() -> {
-                    String deviceName = finalRootNode.path("name")
-                            .asText("Physical Device #" + deviceId.substring(0, DEVICE_ID_PREFIX_LENGTH));
+                .orElseGet(() -> createNewPhysicalDevice(deviceId, finalNewStateNode));
 
-                    logger.info("Device {} not found. Creating a new physical device with name: {}",
-                            deviceId, deviceName);
-
-                    Device newDev = new Device(deviceId, deviceName, DeviceType.PHYSICAL, DeviceRole.SENSOR, "{}");
-                    return deviceRepository.save(newDev);
-                });
-
-        device.setCurrentState(finalState);
+        device.setCurrentState(newStateNode);
         device.setOnline(true);
 
         long now = System.currentTimeMillis();
         long last = lastUpdateSent.getOrDefault(deviceId, 0L);
-        boolean shouldPersist = (now - last > UPDATE_THRESHOLD_MS);
-
-        if (shouldPersist) {
+        if (now - last > UPDATE_THRESHOLD_MS) {
             device = deviceRepository.save(device);
-            messagingTemplate.convertAndSend(TOPIC_DEVICES, device);
+            messagingTemplate.convertAndSend(TOPIC_DEVICES, mapToDto(device));
             lastUpdateSent.put(deviceId, now);
         }
 
         simulationService.processEvent(device);
-
-        timeSeriesService.writeSensorData(deviceId, fullPayloadForInflux);
+        timeSeriesService.writeSensorData(deviceId, newStateNode.toString());
 
         return device;
+    }
+
+    private Device createNewPhysicalDevice(String deviceId, JsonNode initialState) {
+        String deviceName = "Physical Device #" + deviceId.substring(0, Math.min(deviceId.length(), DEVICE_ID_PREFIX_LENGTH));
+        logger.info("Device {} not found. Creating a new physical device with name: {}", deviceId, deviceName);
+        return deviceRepository.save(new Device(deviceId, deviceName, DeviceType.PHYSICAL, DeviceRole.SENSOR, initialState));
     }
 
     public void sendCommand(String deviceId, Map<String, Object> commandPayload) {
@@ -244,17 +237,45 @@ public class DeviceService {
             String topic = "iot/devices/" + deviceId + "/cmd";
 
             logger.info("Sending command to device {}: {}", deviceId, jsonPayload);
-
             mqttGateway.sendToMqtt(jsonPayload, topic);
 
             deviceRepository.findById(deviceId).ifPresent(device -> {
                 if (device.getType() == DeviceType.VIRTUAL) {
-                    handleDeviceEvent(Map.of("deviceId", deviceId, "state", jsonPayload));
+                    var event = new VirtualDeviceCommandLoopbackEvent(Map.of("deviceId", device.getId(), "state", jsonPayload));
+                    eventPublisher.publishEvent(event);
                 }
             });
 
         } catch (JsonProcessingException e) {
             throw new IllegalArgumentException("Invalid command payload", e);
         }
+    }
+
+
+    private DeviceResponse mapToDto(Device device) {
+        String currentState;
+        if (device.getCurrentState() != null) {
+            currentState = device.getCurrentState().toString();
+        } else {
+            currentState = "{}";
+        }
+
+        String simulationConfig;
+        if (device.getSimulationConfig() != null) {
+            simulationConfig = device.getSimulationConfig().toString();
+        } else {
+            simulationConfig = null;
+        }
+
+        return new DeviceResponse(
+                device.getId(),
+                device.getName(),
+                device.getType(),
+                device.getRole(),
+                currentState,
+                simulationConfig,
+                device.isSimulationActive(),
+                device.isOnline()
+        );
     }
 }

@@ -37,7 +37,7 @@ export function AddDeviceForm() {
         };
 
         try {
-            await apiClient('/api/devices', {
+            await apiClient('DEVICES', {
                 method: 'POST',
                 body: newDevice,
             });

@@ -1,6 +1,5 @@
-import { useAppStore } from '../stores/appStore';
+export const API_URL = import.meta.env.VITE_API_URL || '';
 
-const API_URL = import.meta.env.VITE_API_URL || globalThis.location.origin;
 const HTTP_NO_CONTENT = 204;
 
 type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE';
@@ -11,13 +10,23 @@ interface RequestOptions {
     body?: unknown;
 }
 
-/**
- * Centralized API Client.
- * Throws errors to allow callers to handle loading states.
- * Automatically dispatches generic error messages to Snackbar.
- */
-export async function apiClient<T>(endpoint: string, options: RequestOptions = { method: 'GET' }): Promise<T> {
-    const { showSnackbar } = useAppStore.getState();
+const DEFAULT_REQUEST_OPTIONS: RequestOptions = { method: 'GET' };
+
+async function parseErrorResponse(response: Response): Promise<string> {
+    const defaultMessage = `Request failed: ${response.status} ${response.statusText}`;
+    try {
+        const errorData = (await response.json()) as { message?: string };
+        if (errorData?.message) {
+            return errorData.message;
+        }
+    } catch {
+        //  fall back to the default message.
+    }
+    return defaultMessage;
+}
+
+export async function apiClient<T>(endpoint: string, options: RequestOptions = DEFAULT_REQUEST_OPTIONS): Promise<T> {
+    const { showSnackbar } = (await import('../stores/appStore')).useAppStore.getState();
 
     try {
         const headers: Record<string, string> = {
@@ -30,34 +39,23 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
             body = JSON.stringify(options.body);
         }
 
-        const response = await fetch(`${API_URL}${endpoint}`, {
+        const url = `${API_URL}${endpoint}`;
+        const response = await fetch(url, {
             method: options.method,
             headers,
             body,
         });
 
-        //  Handle Application Errors
         if (!response.ok) {
-            let errorMessage = `Request failed: ${response.status} ${response.statusText}`;
-            try {
-                // parse backend dto errors
-                const errorData = (await response.json()) as { message?: string };
-                if (errorData?.message) {
-                    errorMessage = errorData.message;
-                }
-            } catch {
-                //use generic messange
-            }
+            const errorMessage = await parseErrorResponse(response);
             throw new Error(errorMessage);
         }
 
-        // empty
         const contentLength = response.headers.get('content-length');
         if (response.status === HTTP_NO_CONTENT || contentLength === '0') {
             return {} as T;
         }
 
-        //  json
         const text = await response.text();
         if (!text) {
             return {} as T;
@@ -72,8 +70,6 @@ export async function apiClient<T>(endpoint: string, options: RequestOptions = {
         }
 
         showSnackbar(message, 'error');
-
-        // stop loading spinners
         throw error;
     }
 }

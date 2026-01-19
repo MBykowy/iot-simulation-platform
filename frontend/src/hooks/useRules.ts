@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useAppStore } from '../stores/appStore';
+import { API_URL } from '../api/apiClient';
+import {ApiEndpoint} from '../types.ts';
 
-const API_URL = import.meta.env.VITE_API_URL || globalThis.location.origin;
 
 export interface Rule {
     id: string;
@@ -22,7 +23,7 @@ export function useRules() {
     const fetchRules = useCallback(async () => {
         setIsLoading(true);
         try {
-            const response = await fetch(`${API_URL}/api/rules`);
+            const response = await fetch(`${API_URL}${ApiEndpoint.RULES}`);
             if (!response.ok) {
                 throw new Error('Failed to fetch rules');
             }
@@ -46,7 +47,7 @@ export function useRules() {
     }, [showSnackbar]);
 
     useEffect(() => {
-        void fetchRules().catch(console.error);
+        void fetchRules().catch(() => {});
     }, [fetchRules]);
 
     const deleteRule = async (ruleId: string): Promise<boolean> => {
@@ -55,7 +56,7 @@ export function useRules() {
         }
 
         try {
-            const response = await fetch(`${API_URL}/api/rules/${ruleId}`, {
+            const response = await fetch(`${API_URL}${ApiEndpoint.RULES}/${ruleId}`, {
                 method: 'DELETE',
             });
             if (!response.ok) {

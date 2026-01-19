@@ -2,9 +2,7 @@ package com.michalbykowy.iotsim.config;
 
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.AppenderBase;
-import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.WriteApi;
-import com.influxdb.client.WriteApiBlocking;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
 import com.michalbykowy.iotsim.api.LogMessage;
@@ -17,7 +15,6 @@ import java.time.Instant;
 public class MultiTargetLogAppender extends AppenderBase<ILoggingEvent> {
 
     private static SimpMessagingTemplate messagingTemplate;
-    private static InfluxDBClient influxDBClient;
     private static String bucket;
     private static WriteApi writeApi;
 
@@ -33,12 +30,11 @@ public class MultiTargetLogAppender extends AppenderBase<ILoggingEvent> {
 
     @Override
     protected void append(ILoggingEvent event) {
-        // check guard
         if (reentrancyGuard.get()) {
             return;
         }
 
-        // ignore influx (loops)
+        // ignore influx logs to prevent loops
         if (event.getLoggerName().startsWith("com.influxdb")) {
             return;
         }
@@ -51,11 +47,11 @@ public class MultiTargetLogAppender extends AppenderBase<ILoggingEvent> {
             try {
                 applicationLogLevel = LogLevel.valueOf(event.getLevel().toString());
             } catch (IllegalArgumentException e) {
-                // fallback
+                // fallback for unknown log levels
                 applicationLogLevel = LogLevel.INFO;
             }
 
-            // WS output
+            // WebSocket output
             if (messagingTemplate != null) {
                 try {
                     LogMessage logMessage = new LogMessage(
@@ -69,7 +65,7 @@ public class MultiTargetLogAppender extends AppenderBase<ILoggingEvent> {
                 }
             }
 
-            // InfluxDB
+            // InfluxDB output
             if (writeApi != null && bucket != null) {
                 try {
                     Point point = Point.measurement(Measurement.SYSTEM_LOGS.getValue())
@@ -85,8 +81,8 @@ public class MultiTargetLogAppender extends AppenderBase<ILoggingEvent> {
             }
 
         } finally {
-            // unlock
-            reentrancyGuard.set(false);
+            // unlock and clean up thread
+            reentrancyGuard.remove();
         }
     }
 }
