@@ -4,6 +4,7 @@ import com.influxdb.client.InfluxDBClient;
 import com.influxdb.client.InfluxDBClientFactory;
 import com.influxdb.client.WriteApi;
 import com.influxdb.client.WriteOptions;
+import com.influxdb.client.write.events.WriteErrorEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,6 +48,15 @@ public class InfluxDBConfig {
                 .retryInterval(5000)
                 .build();
 
-        return influxDBClient.makeWriteApi(options);
+        WriteApi writeApi = influxDBClient.makeWriteApi(options);
+
+        writeApi.listenEvents(WriteErrorEvent.class, event -> {
+            System.err.println("!!! INFLUX WRITE ERROR !!! " + event.getThrowable().getMessage());
+            if (event.getThrowable().getCause() != null) {
+                System.err.println("Cause: " + event.getThrowable().getCause().getMessage());
+            }
+        });
+
+        return writeApi;
     }
 }

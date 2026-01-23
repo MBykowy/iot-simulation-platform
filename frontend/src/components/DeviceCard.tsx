@@ -10,6 +10,7 @@ import HistoryIcon from '@mui/icons-material/Timeline';
 import { useDeviceActions } from '../hooks/useDeviceActions';
 import PowerSettingsNewIcon from '@mui/icons-material/PowerSettingsNew';
 import CircleIcon from '@mui/icons-material/Circle';
+import { DeviceType } from '../types';
 
 const ONLINE_COLOR = '#4caf50';
 const OFFLINE_COLOR = '#f44336';
@@ -20,7 +21,6 @@ interface DeviceCardProps {
     readonly onSimulateClick: () => void;
     readonly onCommandClick: () => void;
 }
-
 
 export function DeviceCard({ device, onHistoryClick, onSimulateClick, onCommandClick }: DeviceCardProps) {
     const { renameDevice, deleteDevice } = useDeviceActions();
@@ -40,14 +40,6 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onCommandC
         onCommandClick();
     };
 
-    const parseState = (state: string): string => {
-        try {
-            return JSON.stringify(JSON.parse(state || '{}'), null, 2);
-        } catch {
-            return state || '{}';
-        }
-    };
-
     let roleIcon: ReactNode;
     if (device.role === 'SENSOR') {
         roleIcon = <SensorsIcon color='primary' />;
@@ -55,22 +47,22 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onCommandC
         roleIcon = <LightbulbIcon color='secondary' />;
     }
 
-    let simulationButtonColor: 'secondary' | 'default';
+    let simulationButtonColor: 'secondary' | 'default' = 'default';
+    let simulationIconSx = {};
+
     if (device.simulationActive) {
         simulationButtonColor = 'secondary';
-    } else {
-        simulationButtonColor = 'default';
-    }
-
-    let simulationIconSx;
-    if (device.simulationActive) {
         simulationIconSx = { animation: 'spin 2s linear infinite' };
-    } else {
-        simulationIconSx = {};
     }
 
-    let onlineTooltip: string;
-    let onlineStatusSx;
+    let onlineTooltip = 'Offline';
+    let onlineStatusSx = {
+        width: 12,
+        height: 12,
+        color: OFFLINE_COLOR,
+        filter: 'none',
+    };
+
     if (device.online) {
         onlineTooltip = 'Online';
         onlineStatusSx = {
@@ -79,14 +71,32 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onCommandC
             color: ONLINE_COLOR,
             filter: `drop-shadow(0 0 2px ${ONLINE_COLOR})`,
         };
-    } else {
-        onlineTooltip = 'Offline';
-        onlineStatusSx = {
-            width: 12,
-            height: 12,
-            color: OFFLINE_COLOR,
-            filter: 'none',
-        };
+    }
+
+    let commandButton: ReactNode = null;
+    if (device.role === 'ACTUATOR' || device.type === DeviceType.PHYSICAL) {
+        commandButton = (
+            <Tooltip title='Send Command'>
+                <IconButton size='small' onClick={handleCommandClick} color='secondary'>
+                    <PowerSettingsNewIcon fontSize='small' />
+                </IconButton>
+            </Tooltip>
+        );
+    }
+
+    let simulationButton: ReactNode = null;
+    if (device.type === DeviceType.VIRTUAL) {
+        simulationButton = (
+            <Tooltip title='Configure Simulation'>
+                <IconButton
+                    size='small'
+                    onClick={onSimulateClick}
+                    color={simulationButtonColor}
+                >
+                    <AutoAwesomeIcon fontSize='small' sx={simulationIconSx} />
+                </IconButton>
+            </Tooltip>
+        );
     }
 
     return (
@@ -127,7 +137,7 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onCommandC
                         overflowY: 'auto',
                     }}
                 >
-                    <code>{parseState(device.currentState)}</code>
+                    <code>{JSON.stringify(device.currentState, null, 2)}</code>
                 </Box>
             </CardContent>
             <Box sx={{ p: 1, display: 'flex', justifyContent: 'space-between', borderTop: 1, borderColor: 'divider' }}>
@@ -142,26 +152,10 @@ export function DeviceCard({ device, onHistoryClick, onSimulateClick, onCommandC
                             <DeleteIcon fontSize='small' />
                         </IconButton>
                     </Tooltip>
-                    {(device.role === 'ACTUATOR' || device.type === 'PHYSICAL') && (
-                        <Tooltip title='Send Command'>
-                            <IconButton size='small' onClick={handleCommandClick} color='secondary'>
-                                <PowerSettingsNewIcon fontSize='small' />
-                            </IconButton>
-                        </Tooltip>
-                    )}
+                    {commandButton}
                 </Stack>
                 <Stack direction='row' spacing={0.5}>
-                    {device.type === 'VIRTUAL' && (
-                        <Tooltip title='Configure Simulation'>
-                            <IconButton
-                                size='small'
-                                onClick={onSimulateClick}
-                                color={simulationButtonColor}
-                            >
-                                <AutoAwesomeIcon fontSize='small' sx={simulationIconSx} />
-                            </IconButton>
-                        </Tooltip>
-                    )}
+                    {simulationButton}
                     <Tooltip title='View History'>
                         <IconButton size='small' onClick={onHistoryClick}>
                             <HistoryIcon fontSize='small' />

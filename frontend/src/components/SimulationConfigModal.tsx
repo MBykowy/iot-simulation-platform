@@ -72,7 +72,7 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
 
         if (device?.simulationConfig) {
             try {
-                const config = JSON.parse(device.simulationConfig) as SimulationConfig;
+                const config = device.simulationConfig;
                 setIntervalMs(config.intervalMs || DEFAULT_INTERVAL_MS);
 
                 if (config.networkProfile) {
@@ -99,7 +99,7 @@ export function SimulationConfigModal({ device, open, onClose }: SimulationConfi
         } else {
             loadDefaults();
         }
-    }, [device, open, showSnackbar]); // Added 'open' to reset on re-open
+    }, [device, open, showSnackbar]);
 
     const handleIntervalChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
         setIntervalMs(Number(event.target.value));

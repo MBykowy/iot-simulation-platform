@@ -14,19 +14,17 @@ import java.time.Instant;
 
 public class MultiTargetLogAppender extends AppenderBase<ILoggingEvent> {
 
-    private static SimpMessagingTemplate messagingTemplate;
-    private static String bucket;
-    private static WriteApi writeApi;
+    private final SimpMessagingTemplate messagingTemplate;
+    private final WriteApi writeApi;
+    private final String bucket;
 
-    // guard against recursive logging
     private final ThreadLocal<Boolean> reentrancyGuard = ThreadLocal.withInitial(() -> false);
 
-    public static void setDependencies(SimpMessagingTemplate template, WriteApi api, String bucketName) {
-        messagingTemplate = template;
-        writeApi = api;
-        bucket = bucketName;
+    public MultiTargetLogAppender(SimpMessagingTemplate messagingTemplate, WriteApi writeApi, String bucket) {
+        this.messagingTemplate = messagingTemplate;
+        this.writeApi = writeApi;
+        this.bucket = bucket;
     }
-
 
     @Override
     protected void append(ILoggingEvent event) {
@@ -34,24 +32,23 @@ public class MultiTargetLogAppender extends AppenderBase<ILoggingEvent> {
             return;
         }
 
-        // ignore influx logs to prevent loops
-        if (event.getLoggerName().startsWith("com.influxdb")) {
+        String loggerName = event.getLoggerName();
+        if (loggerName.startsWith("com.influxdb") ||
+                loggerName.startsWith("okhttp3") ||
+                loggerName.startsWith("org.springframework.web.socket")) {
             return;
         }
 
         try {
-            // lock
             reentrancyGuard.set(true);
 
             LogLevel applicationLogLevel;
             try {
                 applicationLogLevel = LogLevel.valueOf(event.getLevel().toString());
             } catch (IllegalArgumentException e) {
-                // fallback for unknown log levels
                 applicationLogLevel = LogLevel.INFO;
             }
 
-            // WebSocket output
             if (messagingTemplate != null) {
                 try {
                     LogMessage logMessage = new LogMessage(
@@ -61,11 +58,10 @@ public class MultiTargetLogAppender extends AppenderBase<ILoggingEvent> {
                     );
                     messagingTemplate.convertAndSend("/topic/logs", logMessage);
                 } catch (Exception e) {
-                    addError("Failed to send log to WebSocket", e);
+                    // Swallow to prevent recursion
                 }
             }
 
-            // InfluxDB output
             if (writeApi != null && bucket != null) {
                 try {
                     Point point = Point.measurement(Measurement.SYSTEM_LOGS.getValue())
@@ -76,12 +72,12 @@ public class MultiTargetLogAppender extends AppenderBase<ILoggingEvent> {
 
                     writeApi.writePoint(point);
                 } catch (Exception e) {
-                    addError("Failed to queue log for InfluxDB", e);
+                    // Only log to stderr on failure to avoid log loop
+                    System.err.println("InfluxDB Append Error: " + e.getMessage());
                 }
             }
 
         } finally {
-            // unlock and clean up thread
             reentrancyGuard.remove();
         }
     }

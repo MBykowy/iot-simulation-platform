@@ -8,8 +8,8 @@ public record DeviceResponse(
         String name,
         DeviceType type,
         DeviceRole role,
-        String currentState,
-        String simulationConfig,
+        Object currentState,
+        Object simulationConfig,
         boolean simulationActive,
         boolean online
 ) {}

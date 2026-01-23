@@ -116,7 +116,8 @@ class EndToEndIntegrationTest {
         DeviceResponse receivedUpdate = blockingQueue.poll(5, TimeUnit.SECONDS);
         assertNotNull(receivedUpdate, "Frontend did not receive WebSocket update!");
         assertEquals(deviceId, receivedUpdate.id());
-        assertTrue(receivedUpdate.currentState().contains("42.5"));
+
+        assertTrue(receivedUpdate.currentState().toString().contains("42.5"));
 
         await().atMost(Duration.ofSeconds(5)).until(() ->
                 deviceRepository.existsById(deviceId)

@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useAppStore } from '../stores/appStore';
 import { apiClient } from '../api/apiClient';
-import { AggregateFunction, RuleOperator } from '../types';
+import {AggregateFunction, ApiEndpoint, RuleOperator} from '../types';
 
 interface RuleFormData {
     name: string;
@@ -96,7 +96,8 @@ export function useRuleForm(onRuleAdded: () => void) {
         const newRule = { name: formData.name, triggerConfig, actionConfig };
 
         try {
-            const result = await apiClient('RULES', {
+            // FIXED: Use ApiEndpoint.RULES instead of 'RULES'
+            const result = await apiClient(ApiEndpoint.RULES, {
                 method: 'POST',
                 body: newRule,
             });
@@ -112,6 +113,7 @@ export function useRuleForm(onRuleAdded: () => void) {
             setIsSubmitting(false);
         }
     };
+
 
     return {
         formData,

@@ -20,7 +20,6 @@ mockResizeObserver.mockReturnValue({
 global.ResizeObserver = mockResizeObserver;
 
 vi.mock('@mui/material', async (importOriginal) => {
-    // Correctly typed dynamic import
     const actual = await importOriginal<typeof MuiMaterial>();
     return {
         ...actual,
@@ -40,7 +39,7 @@ const mockDevices: Device[] = [
         name: 'Sensor A',
         type: DeviceType.PHYSICAL,
         role: DeviceRole.SENSOR,
-        currentState: '{"temp": 20}',
+        currentState: { temp: 20 },
         simulationActive: false,
         simulationConfig: null,
         online: true
@@ -50,7 +49,7 @@ const mockDevices: Device[] = [
         name: 'Actuator B',
         type: DeviceType.VIRTUAL,
         role: DeviceRole.ACTUATOR,
-        currentState: '{"status": "ON"}',
+        currentState: { status: 'ON' },
         simulationActive: true,
         simulationConfig: null,
         online: false

@@ -47,11 +47,12 @@ export interface Device {
     name: string;
     type: DeviceType;
     role: DeviceRole;
-    currentState: string;
+    currentState: Record<string, unknown>;
     simulationActive: boolean;
-    simulationConfig: string | null;
+    simulationConfig: SimulationConfig | null;
     online: boolean;
 }
+
 
 export interface LogMessage {
     id: number;

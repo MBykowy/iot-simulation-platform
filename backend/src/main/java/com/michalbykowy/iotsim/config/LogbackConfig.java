@@ -1,8 +1,10 @@
 package com.michalbykowy.iotsim.config;
 
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.LoggerContext;
 import com.influxdb.client.WriteApi;
 import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
@@ -24,11 +26,15 @@ public class LogbackConfig {
     }
 
     @PostConstruct
-    public void init() {
-        MultiTargetLogAppender.setDependencies(messagingTemplate, writeApi, bucket);
-    }
-    @PreDestroy
-    public void cleanup() {
-        MultiTargetLogAppender.setDependencies(null, null, null);
+    public void registerAppender() {
+        LoggerContext loggerContext = (LoggerContext) LoggerFactory.getILoggerFactory();
+
+        MultiTargetLogAppender appender = new MultiTargetLogAppender(messagingTemplate, writeApi, bucket);
+        appender.setName("CUSTOM_MULTI_TARGET");
+        appender.setContext(loggerContext);
+        appender.start();
+
+        Logger rootLogger = loggerContext.getLogger(Logger.ROOT_LOGGER_NAME);
+        rootLogger.addAppender(appender);
     }
 }

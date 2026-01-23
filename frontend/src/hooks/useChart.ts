@@ -4,7 +4,24 @@ import type { Device, InfluxSensorRecord } from '../types';
 import { API_URL } from '../api/apiClient';
 
 const OPTIMIZED_POINT_COUNT = 1000;
-const MAX_LIVE_POINTS = 500;
+
+// Helper to convert range string (e.g., "15m", "1h") to milliseconds
+const getRangeDurationMs = (range: string): number => {
+    const unit = range.slice(-1);
+    const value = parseInt(range.slice(0, -1), 10);
+
+    if (isNaN(value)) {
+        return 15 * 60 * 1000; // Default 15m
+    }
+
+    switch (unit) {
+        case 's': return value * 1000;
+        case 'm': return value * 60 * 1000;
+        case 'h': return value * 60 * 60 * 1000;
+        case 'd': return value * 24 * 60 * 60 * 1000;
+        default: return 15 * 60 * 1000;
+    }
+};
 
 export function useChart(deviceId: string | null) {
     const [fullData, setFullData] = useState<ChartDataPoint[]>([]);
@@ -84,11 +101,12 @@ export function useChart(deviceId: string | null) {
             }
 
             try {
-                const pointState = JSON.parse(device.currentState);
-                const dataPoint: ChartDataPoint = { time: Date.now() };
+                const pointState = device.currentState;
+                const now = Date.now();
+                const dataPoint: ChartDataPoint = { time: now };
 
                 Object.keys(pointState).forEach((key) => {
-                    const val = Number.parseFloat(pointState[key]);
+                    const val = Number.parseFloat(String(pointState[key]));
                     if (!Number.isNaN(val)) {
                         dataPoint[key] = val;
                     }
@@ -97,9 +115,17 @@ export function useChart(deviceId: string | null) {
                 if (Object.keys(dataPoint).length > 1) {
                     setFullData((prevData) => {
                         const newData = [...prevData, dataPoint];
-                        if (newData.length > MAX_LIVE_POINTS && selectedRange.includes('m')) {
-                            return newData.slice(newData.length - MAX_LIVE_POINTS);
+
+                        const rangeMs = getRangeDurationMs(selectedRange);
+                        const cutoffTime = now - (rangeMs * 1.1);
+
+                        if (newData.length > 0 && newData[0].time < cutoffTime) {
+                            const firstValidIndex = newData.findIndex(p => p.time >= cutoffTime);
+                            if (firstValidIndex > 0) {
+                                return newData.slice(firstValidIndex);
+                            }
                         }
+
                         return newData;
                     });
                 }

@@ -19,7 +19,6 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -27,12 +26,6 @@ import java.util.Optional;
 @Service
 public class TimeSeriesService {
     private static final Logger logger = LoggerFactory.getLogger(TimeSeriesService.class);
-    private static final String BUCKET_PARAM = "bucketParam";
-    private static final String RANGE_PARAM = "rangeParam";
-    private static final String MEASUREMENT_PARAM = "measurementParam";
-    private static final String DEVICE_ID_PARAM = "deviceIdParam";
-    private static final String FIELD_PARAM = "fieldParam";
-    private static final String START_PARAM = "startParam";
 
     private final InfluxDBClient influxDBClient;
     private final WriteApi writeApi;
@@ -53,11 +46,11 @@ public class TimeSeriesService {
         this.org = org;
     }
 
-    private List<Map<String, Object>> executeParameterizedQuery(String fluxQuery, Map<String, Object> parameters) {
+    private List<Map<String, Object>> executeQuery(String fluxQuery) {
         logger.debug("Executing Flux query: {}", fluxQuery);
         try {
             QueryApi queryApi = influxDBClient.getQueryApi();
-            List<FluxTable> tables = queryApi.query(fluxQuery, org, parameters);
+            List<FluxTable> tables = queryApi.query(fluxQuery, org);
 
             List<Map<String, Object>> result = new ArrayList<>();
             for (FluxTable table : tables) {
@@ -72,32 +65,38 @@ public class TimeSeriesService {
         }
     }
 
+    private String sanitize(String input) {
+        if (input == null) return "";
+        return input.replace("\"", "\\\"");
+    }
+
     public Optional<Double> queryAggregate(String deviceId, String field, String range, AggregateFunction aggregateFunction) {
         if (aggregateFunction == null) {
             return Optional.empty();
         }
 
-        String fluxQuery = """
-            from(bucket: bucketParam)
-              |> range(start: duration(v: rangeParam))
-              |> filter(fn: (r) => r._measurement == measurementParam)
-              |> filter(fn: (r) => r.deviceId == deviceIdParam)
-              |> filter(fn: (r) => r._field == fieldParam)
-              |> """ + aggregateFunction.toFluxFunction() + "()";
-
-        Map<String, Object> params = new HashMap<>();
-        params.put(BUCKET_PARAM, bucket);
-
         String rangeParam = range;
         if (!range.startsWith("-")) {
             rangeParam = "-" + range;
         }
-        params.put(RANGE_PARAM, rangeParam);
-        params.put(MEASUREMENT_PARAM, Measurement.SENSOR_READINGS.getValue());
-        params.put(DEVICE_ID_PARAM, deviceId);
-        params.put(FIELD_PARAM, field);
 
-        List<Map<String, Object>> result = executeParameterizedQuery(fluxQuery, params);
+        String fluxQuery = String.format("""
+            from(bucket: "%s")
+              |> range(start: duration(v: "%s"))
+              |> filter(fn: (r) => r._measurement == "%s")
+              |> filter(fn: (r) => r.deviceId == "%s")
+              |> filter(fn: (r) => r._field == "%s")
+              |> %s()
+            """,
+                sanitize(bucket),
+                sanitize(rangeParam),
+                sanitize(Measurement.SENSOR_READINGS.getValue()),
+                sanitize(deviceId),
+                sanitize(field),
+                aggregateFunction.toFluxFunction()
+        );
+
+        List<Map<String, Object>> result = executeQuery(fluxQuery);
         return extractAggregateResult(result);
     }
 
@@ -118,21 +117,20 @@ public class TimeSeriesService {
             startParam = "-" + start;
         }
 
-        String fluxQuery = """
-                from(bucket: bucketParam)
-                  |> range(start: duration(v: startParam), stop: now())
-                  |> filter(fn: (r) => r._measurement == measurementParam)
-                  |> filter(fn: (r) => r.deviceId == deviceIdParam)
+        String fluxQuery = String.format("""
+                from(bucket: "%s")
+                  |> range(start: duration(v: "%s"), stop: now())
+                  |> filter(fn: (r) => r._measurement == "%s")
+                  |> filter(fn: (r) => r.deviceId == "%s")
                   |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-                """;
+                """,
+                sanitize(bucket),
+                sanitize(startParam),
+                sanitize(Measurement.SENSOR_READINGS.getValue()),
+                sanitize(deviceId)
+        );
 
-        Map<String, Object> params = new HashMap<>();
-        params.put(BUCKET_PARAM, bucket);
-        params.put(START_PARAM, startParam);
-        params.put(MEASUREMENT_PARAM, Measurement.SENSOR_READINGS.getValue());
-        params.put(DEVICE_ID_PARAM, deviceId);
-
-        return executeParameterizedQuery(fluxQuery, params);
+        return executeQuery(fluxQuery);
     }
 
     public void writeSensorData(String deviceId, String payloadJson) {
@@ -174,21 +172,20 @@ public class TimeSeriesService {
             rangeParam = "-" + rangeParam;
         }
 
-        String fluxQuery = """
-                from(bucket: bucketParam)
-                  |> range(start: duration(v: rangeParam))
-                  |> filter(fn: (r) => r._measurement == measurementParam)
+        String fluxQuery = String.format("""
+                from(bucket: "%s")
+                  |> range(start: duration(v: "%s"))
+                  |> filter(fn: (r) => r._measurement == "%s")
                   |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
                   |> sort(columns: ["_time"], desc: true)
                   |> limit(n: 1000)
                   |> sort(columns: ["_time"], desc: false)
-                """;
+                """,
+                sanitize(bucket),
+                sanitize(rangeParam),
+                sanitize(Measurement.SYSTEM_LOGS.getValue())
+        );
 
-        Map<String, Object> params = new HashMap<>();
-        params.put(BUCKET_PARAM, bucket);
-        params.put(RANGE_PARAM, rangeParam);
-        params.put(MEASUREMENT_PARAM, Measurement.SYSTEM_LOGS.getValue());
-
-        return executeParameterizedQuery(fluxQuery, params);
+        return executeQuery(fluxQuery);
     }
 }

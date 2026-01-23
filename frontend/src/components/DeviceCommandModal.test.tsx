@@ -19,7 +19,7 @@ const mockDevice: Device = {
     name: 'Smart Fan',
     type: DeviceType.VIRTUAL,
     role: DeviceRole.ACTUATOR,
-    currentState: '{}',
+    currentState: {},
     simulationActive: false,
     simulationConfig: null,
     online: true

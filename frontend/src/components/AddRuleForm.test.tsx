@@ -20,7 +20,7 @@ const mockDevices: Device[] = [
         name: 'Temp Sensor',
         type: 'VIRTUAL' as DeviceType,
         role: 'SENSOR' as DeviceRole,
-        currentState: '{}',
+        currentState: {},
         simulationActive: false,
         simulationConfig: null,
         online : true
@@ -30,7 +30,7 @@ const mockDevices: Device[] = [
         name: 'Light Switch',
         type: 'PHYSICAL' as DeviceType,
         role: 'ACTUATOR' as DeviceRole,
-        currentState: '{}',
+        currentState: {},
         simulationActive: false,
         simulationConfig: null,
         online : true

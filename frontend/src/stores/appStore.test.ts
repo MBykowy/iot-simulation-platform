@@ -22,7 +22,7 @@ describe('appStore', () => {
         name: 'Test Device',
         type: 'VIRTUAL' as DeviceType,
         role: 'SENSOR' as DeviceRole,
-        currentState: '{}',
+        currentState: {},
         simulationActive: false,
         simulationConfig: null,
         online : true,

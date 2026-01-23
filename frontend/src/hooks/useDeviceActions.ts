@@ -1,5 +1,6 @@
 import { useAppStore } from '../stores/appStore';
 import { apiClient } from '../api/apiClient';
+import { ApiEndpoint } from '../types';
 
 export function useDeviceActions() {
     const removeDeviceFromStore = useAppStore((state) => state.removeDevice);
@@ -11,7 +12,8 @@ export function useDeviceActions() {
             return false;
         }
 
-        const result = await apiClient(`DEVICES/${deviceId}`, {
+        // FIXED: Use ApiEndpoint.DEVICES
+        const result = await apiClient(`${ApiEndpoint.DEVICES}/${deviceId}`, {
             method: 'PUT',
             body: { name: newName },
         });
@@ -28,7 +30,8 @@ export function useDeviceActions() {
             return false;
         }
 
-        const result = await apiClient(`DEVICES/${deviceId}`, { method: 'DELETE' });
+        // FIXED: Use ApiEndpoint.DEVICES
+        const result = await apiClient(`${ApiEndpoint.DEVICES}/${deviceId}`, { method: 'DELETE' });
 
         if (result) {
             removeDeviceFromStore(deviceId);

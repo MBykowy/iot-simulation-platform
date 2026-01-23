@@ -28,9 +28,15 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import java.util.UUID;
+
 @RestController
 @RequestMapping("/api")
 public class ApiController {
+
+    private static final Logger logger = LoggerFactory.getLogger(ApiController.class);
 
     private final DeviceService deviceService;
     private final RuleService ruleService;
@@ -178,5 +184,29 @@ public class ApiController {
     @GetMapping("/health")
     public Map<String, String> healthCheck() {
         return Map.of("status", "OK");
+    }
+
+    @PostMapping("/debug/generate-logs")
+    public ResponseEntity<Void> generateFakeLogs() {
+        // Simulate sequence
+        logger.info("SIM ENGINE: Starting event chain for device: " + UUID.randomUUID());
+        logger.debug("Executing Flux query: from(bucket: \"device_data\")...");
+
+        try { Thread.sleep(100); } catch (InterruptedException e) {}
+
+        logger.info("SIM ENGINE (Depth 1): Condition met for rule 'Temp Guard'. Executing action.");
+        logger.warn("SIM ENGINE: Updating device " + UUID.randomUUID() + " with new state: {\"temp\": 85.5}");
+
+        try { Thread.sleep(100); } catch (InterruptedException e) {}
+
+        logger.info("INFLUXDB: Wrote data for device " + UUID.randomUUID());
+
+        // occasional error for realism
+        if (Math.random() > 0.7) {
+            logger.error("MQTT: Connection lost temporarily. Reconnecting...");
+            logger.info("MQTT: Connection restored.");
+        }
+
+        return ResponseEntity.noContent().build();
     }
 }

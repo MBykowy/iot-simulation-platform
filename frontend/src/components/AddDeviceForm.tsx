@@ -11,7 +11,7 @@ import {
     type SelectChangeEvent,
 } from '@mui/material';
 import { useAppStore } from '../stores/appStore';
-import { DeviceType, DeviceRole, type DeviceRequest } from '../types';
+import { DeviceType, DeviceRole, type DeviceRequest, ApiEndpoint } from '../types';
 import { apiClient } from '../api/apiClient';
 
 export function AddDeviceForm() {
@@ -37,7 +37,8 @@ export function AddDeviceForm() {
         };
 
         try {
-            await apiClient('DEVICES', {
+            // FIXED: Use ApiEndpoint.DEVICES instead of string literal 'DEVICES'
+            await apiClient(ApiEndpoint.DEVICES, {
                 method: 'POST',
                 body: newDevice,
             });

@@ -1,6 +1,6 @@
 import type { ChangeEvent, FormEvent } from 'react';
 import { useEffect, useState } from 'react';
-import type { Device } from '../types';
+import { type Device, ApiEndpoint } from '../types';
 import {
     Box,
     Button,
@@ -53,11 +53,12 @@ export function EventSimulatorForm({ devices }: EventSimulatorFormProps) {
 
         const eventPayload = {
             deviceId: selectedDeviceId,
-            state: newStateJson,
+            state: newStateJson, // Backend now expects string here for manual event simulation, or update backend to handle object
         };
 
         try {
-            await apiClient('EVENTS', {
+            // FIXED: Use ApiEndpoint.EVENTS
+            await apiClient(ApiEndpoint.EVENTS, {
                 method: 'POST',
                 body: eventPayload,
             });

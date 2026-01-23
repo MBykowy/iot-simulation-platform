@@ -253,27 +253,13 @@ public class DeviceService {
 
 
     private DeviceResponse mapToDto(Device device) {
-        String currentState;
-        if (device.getCurrentState() != null) {
-            currentState = device.getCurrentState().toString();
-        } else {
-            currentState = "{}";
-        }
-
-        String simulationConfig;
-        if (device.getSimulationConfig() != null) {
-            simulationConfig = device.getSimulationConfig().toString();
-        } else {
-            simulationConfig = null;
-        }
-
         return new DeviceResponse(
                 device.getId(),
                 device.getName(),
                 device.getType(),
                 device.getRole(),
-                currentState,
-                simulationConfig,
+                device.getCurrentState(),
+                device.getSimulationConfig(),
                 device.isSimulationActive(),
                 device.isOnline()
         );
