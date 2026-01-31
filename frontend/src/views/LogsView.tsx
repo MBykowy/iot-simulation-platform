@@ -115,7 +115,7 @@ export function LogsView() {
                     });
                 }, 100);
             } catch {
-                // Silent fail is acceptable on first load
+                // Silent fail is ok on first load
             } finally {
                 setIsLoading(false);
             }

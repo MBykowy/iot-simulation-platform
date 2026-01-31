@@ -37,7 +37,6 @@ export function AddDeviceForm() {
         };
 
         try {
-            // FIXED: Use ApiEndpoint.DEVICES instead of string literal 'DEVICES'
             await apiClient(ApiEndpoint.DEVICES, {
                 method: 'POST',
                 body: newDevice,

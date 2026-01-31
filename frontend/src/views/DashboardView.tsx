@@ -14,7 +14,7 @@ export function DashboardView() {
                     elevation={0}
                     sx={{
                         p: 4,
-                        background: 'rgba(22, 22, 22, 0.6)',
+
                         border: '1px solid rgba(96, 165, 250, 0.1)',
                         borderRadius: 3,
                     }}

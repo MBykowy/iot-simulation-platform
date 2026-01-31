@@ -12,7 +12,6 @@ export function useDeviceActions() {
             return false;
         }
 
-        // FIXED: Use ApiEndpoint.DEVICES
         const result = await apiClient(`${ApiEndpoint.DEVICES}/${deviceId}`, {
             method: 'PUT',
             body: { name: newName },
@@ -30,7 +29,6 @@ export function useDeviceActions() {
             return false;
         }
 
-        // FIXED: Use ApiEndpoint.DEVICES
         const result = await apiClient(`${ApiEndpoint.DEVICES}/${deviceId}`, { method: 'DELETE' });
 
         if (result) {

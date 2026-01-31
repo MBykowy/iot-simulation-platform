@@ -96,7 +96,7 @@ export function useRuleForm(onRuleAdded: () => void) {
         const newRule = { name: formData.name, triggerConfig, actionConfig };
 
         try {
-            // FIXED: Use ApiEndpoint.RULES instead of 'RULES'
+
             const result = await apiClient(ApiEndpoint.RULES, {
                 method: 'POST',
                 body: newRule,

@@ -1,4 +1,3 @@
-/* eslint-disable react-refresh/only-export-components */
 import { Box, Typography } from '@mui/material';
 import PlayArrowIcon from '@mui/icons-material/PlayArrow';
 import RuleIcon from '@mui/icons-material/Rule';

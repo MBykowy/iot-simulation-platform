@@ -53,11 +53,10 @@ export function EventSimulatorForm({ devices }: EventSimulatorFormProps) {
 
         const eventPayload = {
             deviceId: selectedDeviceId,
-            state: newStateJson, // Backend now expects string here for manual event simulation, or update backend to handle object
+            state: newStateJson,
         };
 
         try {
-            // FIXED: Use ApiEndpoint.EVENTS
             await apiClient(ApiEndpoint.EVENTS, {
                 method: 'POST',
                 body: eventPayload,

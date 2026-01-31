@@ -1,136 +1,75 @@
-"""
-Final Benchmark: Isolated I/O Latency.
-
-Separates "Data Preparation" (CPU) from "Database Commit" (I/O).
-This purely measures how long the main application thread is blocked
-by the database operation.
-"""
-
-import logging
-import os
-import random
-import sqlite3
 import time
-import uuid
-from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
-from typing import Any
+import sqlite3
+import random
+import os
+import csv
+from influxdb_client import InfluxDBClient, Point, WriteOptions
 
-from influxdb_client import InfluxDBClient, Point
-from influxdb_client.client.write_api import ASYNCHRONOUS
+# Config
+SAMPLES = 10000
+RUNS = 25
+OUTPUT_FILE = "db_benchmark_results.csv"
+SQLITE_FILE = "test_benchmark.db"
 
-# --- CONFIGURATION ---
-@dataclass(frozen=True)
-class Config:
-    INFLUX_URL: str = "http://localhost:8086"
-    INFLUX_TOKEN: str = "SuperSafeToken_Local_Only"
-    INFLUX_ORG: str = "iot-project"
-    INFLUX_BUCKET: str = "device_data"
-    SQLITE_DB_PATH: Path = Path("benchmark_io.db")
+INFLUX_URL = "http://localhost:8086"
+INFLUX_TOKEN = "SuperSafeToken_Local_Only"
+INFLUX_ORG = "iot-project"
+INFLUX_BUCKET = "device_data"
 
-    NUM_SAMPLES: int = 100_000
-    BATCH_SIZE: int = 5_000
+def get_data():
+    return {
+        "temp": round(random.uniform(20.0, 30.0), 2),
+        "hum": round(random.uniform(40.0, 60.0), 2)
+    }
 
-CONF = Config()
-logging.basicConfig(level=logging.ERROR)
+def run_sqlite():
+    if os.path.exists(SQLITE_FILE):
+        os.remove(SQLITE_FILE)
 
-def generate_raw_data(count: int) -> list[dict]:
-    print(f"-> Generating {count} raw records in memory...")
-    now = datetime.now(timezone.utc)
-    return [{
-        'device_id': f"sensor_{i % 100}",
-        'timestamp': now - timedelta(seconds=i),
-        'temp': random.uniform(20.0, 30.0),
-        'hum': random.uniform(40.0, 60.0),
-        'status': "OK"
-    } for i in range(count)]
+    conn = sqlite3.connect(SQLITE_FILE)
+    cursor = conn.cursor()
+    cursor.execute("CREATE TABLE telemetry (id INTEGER PRIMARY KEY, dev TEXT, temp REAL, hum REAL)")
+    conn.commit()
 
-def benchmark_sqlite_io(raw_data: list[dict]) -> float:
-    # 1. PREPARATION (CPU) - Outside the timer
-    db_path = CONF.SQLITE_DB_PATH
-    if db_path.exists(): db_path.unlink()
-
-    # Pre-convert to tuples so we only measure Disk I/O
-    prepared_rows = [
-        (p['device_id'], p['timestamp'], p['temp'], p['hum'], p['status'])
-        for p in raw_data
-    ]
-
-    with sqlite3.connect(db_path) as conn:
-        conn.execute("PRAGMA journal_mode=WAL;")
-        conn.execute("CREATE TABLE data (id INTEGER PRIMARY KEY, dev TEXT, ts DATETIME, temp REAL, hum REAL, stat TEXT)")
+    start = time.time()
+    for _ in range(SAMPLES):
+        d = get_data()
+        cursor.execute("INSERT INTO telemetry (dev, temp, hum) VALUES (?, ?, ?)", ("dev_1", d['temp'], d['hum']))
         conn.commit()
 
-        # 2. EXECUTION (I/O) - Inside the timer
-        print(f"[SQLite] Writing {len(raw_data)} rows (Blocking I/O)...")
-        start = time.perf_counter()
+    end = time.time()
+    conn.close()
+    return end - start
 
-        conn.executemany("INSERT INTO data (dev, ts, temp, hum, stat) VALUES (?,?,?,?,?)", prepared_rows)
-        conn.commit() # <--- The Main Thread BLOCKS here until disk confirms
+def run_influx():
+    client = InfluxDBClient(url=INFLUX_URL, token=INFLUX_TOKEN, org=INFLUX_ORG)
+    write_api = client.write_api(write_options=WriteOptions(batch_size=1000, flush_interval=1000))
 
-        duration = time.perf_counter() - start
+    start = time.time()
+    for _ in range(SAMPLES):
+        d = get_data()
+        p = Point("sensor_readings").tag("deviceId", "dev_1").field("temp", d['temp']).field("hum", d['hum'])
+        write_api.write(bucket=INFLUX_BUCKET, record=p)
 
-    return duration
-
-def benchmark_influx_io(raw_data: list[dict]) -> float:
-    # 1. PREPARATION (CPU) - Outside the timer
-    client = InfluxDBClient(url=CONF.INFLUX_URL, token=CONF.INFLUX_TOKEN, org=CONF.INFLUX_ORG)
-    write_api = client.write_api(write_options=ASYNCHRONOUS)
-    measurement = f"io_test_{uuid.uuid4().hex[:6]}"
-
-    # Pre-convert to Points so we only measure Network/Buffer Hand-off
-    prepared_points = [
-        Point(measurement)
-        .tag("deviceId", p['device_id'])
-        .tag("status", p['status'])
-        .field("temp", p['temp'])
-        .field("hum", p['hum'])
-        .time(p['timestamp'])
-        for p in raw_data
-    ]
-
-    # 2. EXECUTION (I/O) - Inside the timer
-    print(f"[InfluxDB] Writing {len(raw_data)} points (Async Hand-off)...")
-    start = time.perf_counter()
-
-    write_api.write(bucket=CONF.INFLUX_BUCKET, org=CONF.INFLUX_ORG, record=prepared_points)
-    # <--- The Main Thread does NOT block here. It dumps to memory and continues.
-
-    duration = time.perf_counter() - start
-
-    # Cleanup background threads
     write_api.close()
     client.close()
-    return duration
-
-def main():
-    raw_data = generate_raw_data(CONF.NUM_SAMPLES)
-
-    # Run Benchmarks
-    t_sqlite = benchmark_sqlite_io(raw_data)
-    t_influx = benchmark_influx_io(raw_data)
-
-    # Storage check
-    sqlite_size = CONF.SQLITE_DB_PATH.stat().st_size / (1024*1024)
-
-    print("\n" + "=" * 80)
-    print(f"{'METRIC':<30} | {'SQLite (Disk Wait)':<20} | {'InfluxDB (Async)':<20} | {'Result':<10}")
-    print("-" * 80)
-
-    # Latency
-    diff = f"{t_sqlite / t_influx:.1f}x Faster" if t_influx > 0 else "Instant"
-    print(f"{'Main Thread Block Time':<30} | {t_sqlite:<18.4f} s | {t_influx:<18.4f} s | {diff}")
-
-    # Storage
-    print(f"{'Disk Usage (Raw)':<30} | {sqlite_size:<18.2f} MB | ~{sqlite_size*0.2:<18.2f} MB | InfluxDB")
-
-    print("-" * 80)
-    print("CONCLUSION:")
-    print("1. SQLite blocks the app while writing to the physical disk (Durability).")
-    print("2. InfluxDB (Async) dumps data to a RAM buffer and returns control immediately.")
-    print("   The network transmission happens in the background, keeping the App UI responsive.")
-    print("=" * 80)
+    return time.time() - start
 
 if __name__ == "__main__":
-    main()
+    with open(OUTPUT_FILE, 'w', newline='') as f:
+        writer = csv.writer(f)
+        writer.writerow(["Run", "SQLite_Time", "SQLite_OPS", "Influx_Time", "Influx_OPS"])
+
+        for i in range(1, RUNS + 1):
+            print(f"Executing Run {i}/{RUNS}...")
+
+            t_sql = run_sqlite()
+            t_inf = run_influx()
+
+            row = [i, t_sql, SAMPLES/t_sql, t_inf, SAMPLES/t_inf]
+            writer.writerow(row)
+            f.flush()
+
+            print(f"  SQLite: {t_sql:.2f}s | Influx: {t_inf:.2f}s")
+
+    print(f"Benchmark finished {OUTPUT_FILE}")
